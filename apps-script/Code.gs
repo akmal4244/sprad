@@ -31,6 +31,10 @@ const ROLE_REVIEWER = "reviewer";
 const ROLE_VIEWER = "viewer";
 const SESSION_DAYS = 7;
 const DEFAULT_INSTITUTION_ID = "inst_default";
+const SETUP_CACHE_KEY = "sprad_schema_ready_v2";
+const SETUP_CACHE_SECONDS = 300;
+const LOGIN_ATTEMPT_LIMIT = 8;
+const LOGIN_ATTEMPT_WINDOW_SECONDS = 600;
 
 // SPRAD V2: public registration must never create administrator accounts.
 const ALLOW_PUBLIC_ADMIN_REGISTER = false;
@@ -174,6 +178,7 @@ function doGet(e) {
 // Run this manually once from Apps Script if you want to force setup immediately.
 // Normal web requests also call ensureSheets_() automatically.
 function setup() {
+  clearSetupCache_();
   ensureSheets_();
   return `${APP_NAME} setup complete. Legacy sheets and SPRAD V2 foundation sheets are ready.`;
 }
@@ -359,8 +364,8 @@ function register({ username, password, role }) {
     return json({ ok: false, error: "missing fields" });
   }
 
-  if (user.password.length < 4) {
-    return json({ ok: false, error: "password too short" });
+  if (user.password.length < 8) {
+    return json({ ok: false, error: "Kata laluan mesti sekurang-kurangnya 8 aksara." });
   }
 
   const lock = LockService.getScriptLock();
@@ -397,6 +402,10 @@ function login({ username, password }) {
     return json({ ok: false, error: "missing credentials" });
   }
 
+  if (isLoginRateLimited_(username)) {
+    return json({ ok: false, error: "Terlalu banyak cubaan log masuk. Sila cuba semula dalam 10 minit." });
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const usersSheet = ss.getSheetByName(SHEET_USERS);
   const rows = usersSheet.getDataRange().getValues();
@@ -421,6 +430,8 @@ function login({ username, password }) {
       usersSheet.getRange(rowNumber, 4).setValue(role);
     }
 
+    clearLoginAttempts_(username);
+
     const token = Utilities.getUuid();
     const expires = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
     ss.getSheetByName(SHEET_SESSIONS).appendRow([token, userId, expires, new Date()]);
@@ -436,7 +447,8 @@ function login({ username, password }) {
     });
   }
 
-  return json({ ok: false, error: "wrong credentials" });
+  recordFailedLogin_(username);
+  return json({ ok: false, error: "Nama pengguna atau kata laluan salah." });
 }
 
 function validateToken(token) {
@@ -528,6 +540,9 @@ function getMutationStatus(requestId, user) {
 
 // =========== AUTOMATIC SHEET SETUP ===========
 function ensureSheets_() {
+  const cache = getScriptCache_();
+  if (cache && cache.get(SETUP_CACHE_KEY) === "true") return;
+
   ensureSheet_(SHEET_CONTACTS, HEADERS.contacts);
   ensureSheet_(SHEET_USERS, HEADERS.users);
   ensureSheet_(SHEET_SESSIONS, HEADERS.sessions);
@@ -540,6 +555,8 @@ function ensureSheets_() {
   seedDummySessions_();
   seedDummyContacts_();
   fixMisalignedContactRows_();
+
+  if (cache) cache.put(SETUP_CACHE_KEY, "true", SETUP_CACHE_SECONDS);
 }
 
 function ensureV2Sheets_() {
@@ -799,6 +816,44 @@ function appendLegacyContact_(contact) {
   SpreadsheetApp.getActiveSpreadsheet()
     .getSheetByName(SHEET_CONTACTS)
     .appendRow([Date.now(), clean_(contact.name), clean_(contact.email), clean_(contact.message), new Date()]);
+}
+
+function getScriptCache_() {
+  try {
+    return CacheService.getScriptCache();
+  } catch (err) {
+    console.warn(`Script cache unavailable: ${err.message}`);
+    return null;
+  }
+}
+
+function clearSetupCache_() {
+  const cache = getScriptCache_();
+  if (cache) cache.remove(SETUP_CACHE_KEY);
+}
+
+function isLoginRateLimited_(username) {
+  const cache = getScriptCache_();
+  if (!cache) return false;
+  const attempts = Number(cache.get(loginAttemptKey_(username)) || 0);
+  return attempts >= LOGIN_ATTEMPT_LIMIT;
+}
+
+function recordFailedLogin_(username) {
+  const cache = getScriptCache_();
+  if (!cache) return;
+  const key = loginAttemptKey_(username);
+  const attempts = Math.min(LOGIN_ATTEMPT_LIMIT, Number(cache.get(key) || 0) + 1);
+  cache.put(key, String(attempts), LOGIN_ATTEMPT_WINDOW_SECONDS);
+}
+
+function clearLoginAttempts_(username) {
+  const cache = getScriptCache_();
+  if (cache) cache.remove(loginAttemptKey_(username));
+}
+
+function loginAttemptKey_(username) {
+  return `sprad_login_${hashPassword_(clean_(username).toLowerCase()).slice(0, 40)}`;
 }
 
 function calculateRisk_(likelihood, impact) {

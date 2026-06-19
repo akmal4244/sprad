@@ -13,8 +13,15 @@
   --sprad-shadow: 0 18px 45px rgba(17, 24, 39, .08);
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -24,6 +31,8 @@ body {
     linear-gradient(180deg, rgba(17, 24, 39, .03) 1px, transparent 1px) 0 0 / 32px 32px,
     var(--sprad-paper) !important;
   color: var(--sprad-ink) !important;
+  overflow-x: hidden;
+  text-rendering: optimizeLegibility;
 }
 
 body::before {
@@ -34,6 +43,11 @@ body::before {
   height: 4px;
   pointer-events: none;
   background: linear-gradient(90deg, var(--sprad-blue), var(--sprad-red) 54%, var(--sprad-gold));
+}
+
+::selection {
+  background: rgba(30, 64, 175, .16);
+  color: var(--sprad-ink);
 }
 
 header {
@@ -61,10 +75,23 @@ div.rounded-xl {
   box-shadow: var(--sprad-shadow) !important;
 }
 
+.shadow-sm {
+  box-shadow: 0 8px 18px rgba(17, 24, 39, .05) !important;
+}
+
+.shadow-md {
+  box-shadow: 0 14px 32px rgba(17, 24, 39, .07) !important;
+}
+
+.shadow-xl,
+.shadow-lg {
+  box-shadow: var(--sprad-shadow) !important;
+}
+
 .brand-cover {
   position: relative;
   overflow: hidden;
-  min-height: 190px;
+  min-height: 148px;
   border-top: 3px solid var(--sprad-blue);
 }
 
@@ -85,10 +112,10 @@ div.rounded-xl {
   bottom: 10px;
   pointer-events: none;
   color: rgba(17, 24, 39, .045);
-  font-size: clamp(2.6rem, 8vw, 6rem);
+  font-size: clamp(2.2rem, 6vw, 4.8rem);
   font-weight: 800;
   line-height: 1;
-  letter-spacing: .16em;
+  letter-spacing: .12em;
 }
 
 .brand-cover > * {
@@ -156,11 +183,26 @@ button {
   text-underline-offset: 4px;
 }
 
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(30, 64, 175, .28);
+  outline-offset: 3px;
+}
+
 input,
 textarea,
 select {
   border-color: #cbd5e1 !important;
   background-color: #fbfdff !important;
+  min-height: 2.75rem;
+}
+
+textarea {
+  line-height: 1.6 !important;
+  resize: vertical;
 }
 
 input:focus,
@@ -185,18 +227,78 @@ table thead {
   background: #f8fafc !important;
 }
 
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+th,
+td {
+  vertical-align: top;
+}
+
 tbody tr:hover {
   background-color: #f8fbff !important;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
+
 @media (max-width: 640px) {
+  header {
+    height: auto !important;
+    min-height: 4rem;
+  }
+
+  header .max-w-7xl {
+    gap: .75rem;
+    padding-top: .65rem;
+    padding-bottom: .65rem;
+  }
+
   .brand-cover {
-    min-height: 160px;
+    min-height: 132px;
   }
 
   .brand-cover::after {
     right: 14px;
     bottom: 8px;
     letter-spacing: .1em;
+  }
+
+  main {
+    padding-top: 1rem !important;
+  }
+
+  table {
+    min-width: 720px;
+  }
+
+  #toast {
+    left: 1rem !important;
+    right: 1rem !important;
+    top: 4.75rem !important;
+    width: auto !important;
+  }
+}
+
+@media print {
+  body {
+    background: #fff !important;
+  }
+
+  header,
+  #toast,
+  aside,
+  button {
+    display: none !important;
   }
 }
