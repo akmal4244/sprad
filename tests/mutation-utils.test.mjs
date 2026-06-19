@@ -115,3 +115,24 @@ test("throws immediately for non-pending polling errors", async () => {
     /invalid token/
   );
 });
+
+test("reports unsupported receipt polling for older Apps Script deployments", async () => {
+  const receipt = await pollMutationReceipt({
+    url: "https://script.google.com/macros/s/demo/exec",
+    token: "token-123",
+    requestId: "req-legacy",
+    attempts: 3,
+    delayMs: 1,
+    sleep: async () => {},
+    fetchImpl: async () => ({
+      async json() {
+        return { ok: false, error: "unknown action" };
+      }
+    })
+  });
+
+  assert.deepEqual(receipt, {
+    status: "unsupported",
+    error: "Backend belum dikemaskini untuk pengesahan automatik. Sila kemaskini Apps Script dan redeploy Web App."
+  });
+});

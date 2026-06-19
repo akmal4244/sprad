@@ -51,6 +51,13 @@ export async function pollMutationReceipt({
       }
     }
 
+    if (!data.ok && data.error && isUnsupportedMutationEndpoint(data.error)) {
+      return {
+        status: "unsupported",
+        error: "Backend belum dikemaskini untuk pengesahan automatik. Sila kemaskini Apps Script dan redeploy Web App."
+      };
+    }
+
     if (!data.ok && data.error && !isPendingReceiptError(data.error)) {
       throw new Error(readErrorMessage(data.error));
     }
@@ -70,6 +77,11 @@ function wait(delayMs) {
 
 function isPendingReceiptError(error) {
   return readErrorMessage(error).toLowerCase().includes("receipt not found");
+}
+
+function isUnsupportedMutationEndpoint(error) {
+  const message = readErrorMessage(error).toLowerCase();
+  return message.includes("unknown action") || message.includes("unknown endpoint");
 }
 
 function readErrorMessage(error) {

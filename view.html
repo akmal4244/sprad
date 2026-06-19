@@ -475,7 +475,7 @@
           await refreshContactsFromSheets();
         } catch (error) {
           setRowBusy(row, false);
-          showToast("Ralat", "Rekod tidak dapat dikemaskini. Sila cuba lagi.", "error");
+          showToast("Ralat", error.message || "Rekod tidak dapat dikemaskini. Sila cuba lagi.", "error");
         }
         return;
       }
@@ -504,7 +504,7 @@
           await refreshContactsFromSheets();
         } catch (error) {
           setRowBusy(row, false);
-          showToast("Ralat", "Rekod tidak dapat dipadam. Sila cuba lagi.", "error");
+          showToast("Ralat", error.message || "Rekod tidak dapat dipadam. Sila cuba lagi.", "error");
         }
       }
     });
