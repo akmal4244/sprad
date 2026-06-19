@@ -196,14 +196,14 @@ Jika checkbox "Ingat saya" ditanda:
 
 - `spradRememberMe` disimpan sebagai `"true"`.
 - `spradUsername` disimpan.
-- `spradPassword` disimpan.
-- Selepas logout, username dan password kekal dalam login form.
+- `spradPassword` dibersihkan jika wujud daripada versi lama.
+- Selepas logout, hanya username kekal dalam login form.
 
 Jika checkbox tidak ditanda:
 
-- Username dan password dibuang daripada `localStorage` semasa logout.
+- Username, metadata sesi dan token dibuang daripada `localStorage` semasa logout.
 
-Nota keselamatan: Menyimpan password dalam `localStorage` bukan amalan terbaik. Fungsi ini dibuat kerana diminta, tetapi untuk production lebih baik simpan username sahaja.
+Nota keselamatan: SPRAD tidak menyimpan password dalam `localStorage`. Fungsi "Ingat saya" hanya menyimpan username.
 
 ### 8.3 Aliran Daftar Akaun
 

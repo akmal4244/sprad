@@ -31,7 +31,7 @@ const ROLE_REVIEWER = "reviewer";
 const ROLE_VIEWER = "viewer";
 const SESSION_DAYS = 7;
 const DEFAULT_INSTITUTION_ID = "inst_default";
-const SETUP_CACHE_KEY = "sprad_schema_ready_v2";
+const SETUP_CACHE_KEY = "sprad_schema_ready_v2_1";
 const SETUP_CACHE_SECONDS = 300;
 const LOGIN_ATTEMPT_LIMIT = 8;
 const LOGIN_ATTEMPT_WINDOW_SECONDS = 600;
@@ -138,7 +138,8 @@ function doPost(e) {
   try {
     ensureSheets_();
     const body = parseBody_(e);
-    if (body.action === "findings.create" || body.action === "findings.create.legacy") {
+    if (isV2MutationAction_(body.action)) return handleV2Mutation_(body);
+    if (body.action === "findings.create.legacy") {
       return saveFindingMutation_(body);
     }
     if (body.action === "contacts.update") return updateContact(body);
@@ -169,6 +170,8 @@ function doGet(e) {
 
     if (p.action === "getContacts") return getContacts(user);
     if (p.action === "mutations.status") return getMutationStatus(p.requestId || p.request_id, user);
+    const v2Response = routeV2Get_(p, user);
+    if (v2Response) return v2Response;
 
     return json({ ok: false, error: "unknown action" });
   } catch (err) {
@@ -191,7 +194,7 @@ function getConfig() {
     ok: true,
     data: {
       app_name: APP_NAME,
-      schema_version: "2.0-foundation",
+      schema_version: "2.1-blueprint-foundation",
       logo_url: LOGO_URL,
       favicon_url: FAVICON_URL,
       legacy_roles: [ROLE_ADMIN, ROLE_USER],
@@ -386,6 +389,12 @@ function register({ username, password, role }) {
 
     const id = Utilities.getUuid();
     sheet.appendRow([id, user.username, hashPassword_(user.password), user.role, new Date()]);
+    const rowNumber = sheet.getLastRow();
+    setExtraField_(sheet, rowNumber, "institution_id", DEFAULT_INSTITUTION_ID);
+    setExtraField_(sheet, rowNumber, "display_name", user.username);
+    setExtraField_(sheet, rowNumber, "status", "active");
+    setExtraField_(sheet, rowNumber, "updated_at", nowIso_());
+    setExtraField_(sheet, rowNumber, "updated_by", "public_register");
 
     return json({
       ok: true,
@@ -436,13 +445,29 @@ function login({ username, password }) {
 
     const token = Utilities.getUuid();
     const expires = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
-    ss.getSheetByName(SHEET_SESSIONS).appendRow([token, userId, expires, new Date()]);
+    const sessionSheet = ss.getSheetByName(SHEET_SESSIONS);
+    const sessionHeaders = getSheetHeaders_(sessionSheet);
+    const sessionRecord = {
+      token,
+      user_id: userId,
+      expires,
+      created_at: new Date(),
+      token_hash: hashPassword_(token),
+      institution_id: getUserInstitutionId_(userId),
+      role,
+      last_seen_at: nowIso_(),
+      revoked_at: ""
+    };
+    sessionSheet.appendRow(sessionHeaders.map(header => sessionRecord[header] !== undefined ? sessionRecord[header] : ""));
     cleanupExpiredSessions_();
 
     return json({
       ok: true,
       token,
       role,
+      v2_role: normalizeV2Role_(role),
+      user_id: userId,
+      institution_id: sessionRecord.institution_id,
       username: storedUsername,
       app_name: APP_NAME,
       logo_url: LOGO_URL
@@ -463,9 +488,15 @@ function validateToken(token) {
     .getValues();
 
   const now = new Date();
+  const tokenHash = hashPassword_(token);
   for (let i = 1; i < rows.length; i++) {
-    const [storedToken, userId, expires] = rows[i];
-    if (storedToken === token && new Date(expires) > now) {
+    const headers = rows[0].map(header => clean_(header));
+    const storedToken = String(rows[i][headers.indexOf("token")] || "");
+    const storedTokenHash = String(rows[i][headers.indexOf("token_hash")] || "");
+    const userId = rows[i][headers.indexOf("user_id")];
+    const expires = rows[i][headers.indexOf("expires")];
+    const revokedAt = headers.indexOf("revoked_at") === -1 ? "" : rows[i][headers.indexOf("revoked_at")];
+    if (!revokedAt && (storedToken === token || storedTokenHash === tokenHash) && new Date(expires) > now) {
       return findUserById_(userId);
     }
   }
@@ -640,30 +671,7 @@ function deleteContact(body) {
 function getRiskMatrix() {
   return json({
     ok: true,
-    data: {
-      likelihood_scale: [
-        { value: 1, label: "Rendah" },
-        { value: 2, label: "Sederhana" },
-        { value: 3, label: "Tinggi" },
-        { value: 4, label: "Sangat Tinggi" }
-      ],
-      impact_scale: [
-        { value: 1, label: "Rendah" },
-        { value: 2, label: "Sederhana" },
-        { value: 3, label: "Tinggi" },
-        { value: 4, label: "Sangat Tinggi" }
-      ],
-      risk_levels: V2_RISK_LEVELS.map(row => ({
-        id: row[0],
-        code: row[2],
-        label: row[3],
-        rank: row[4],
-        min_score: row[5],
-        max_score: row[6],
-        color_hex: row[7],
-        default_due_days: row[9]
-      }))
-    }
+    data: getRiskMatrixData_()
   });
 }
 
@@ -679,6 +687,1187 @@ function getMutationStatus(requestId, user) {
   return json({ ok: true, receipt });
 }
 
+function routeV2Get_(p, user) {
+  const action = clean_(p.action);
+  if (action === "auth.me") return apiOk_({ user: publicUser_(user) });
+  if (action === "auth.logout") return logoutSession_(p.token, user);
+  if (action === "institutions.list") return listInstitutions_(user);
+  if (action === "institutions.get") return getInstitution_(user, p.id || p.institution_id);
+  if (action === "orgUnits.list") return listTenantRecords_(SHEET_ORG_UNITS, user, p);
+  if (action === "users.list") return listUsers_(user, p);
+  if (action === "auditCycles.list") return listTenantRecords_(SHEET_AUDIT_CYCLES, user, p);
+  if (action === "audits.list") return listTenantRecords_(SHEET_AUDITS, user, p);
+  if (action === "riskCategories.list") return listTenantRecords_(SHEET_RISK_CATEGORIES, user, p);
+  if (action === "findings.list") return listFindings_(user, p);
+  if (action === "findings.get") return getFinding_(user, p.id);
+  if (action === "correctiveActions.list") return listCorrectiveActions_(user, p);
+  if (action === "dashboard.summary") return getDashboardSummary_(user, p);
+  if (action === "reports.dataset") return getReportDataset_(user, p);
+  return null;
+}
+
+function isV2MutationAction_(action) {
+  return [
+    "institutions.create",
+    "institutions.update",
+    "institutions.delete",
+    "institutions.restore",
+    "orgUnits.create",
+    "orgUnits.update",
+    "orgUnits.delete",
+    "auditCycles.create",
+    "auditCycles.update",
+    "auditCycles.finalize",
+    "audits.create",
+    "audits.update",
+    "findings.create",
+    "findings.update",
+    "findings.delete",
+    "findings.restore",
+    "findings.submit",
+    "findings.return",
+    "findings.approve",
+    "findings.overrideLevel",
+    "correctiveActions.create",
+    "correctiveActions.update",
+    "correctiveActions.submitForVerification",
+    "correctiveActions.verify",
+    "users.create",
+    "users.update",
+    "users.deactivate",
+    "settings.update"
+  ].indexOf(clean_(action)) !== -1;
+}
+
+function handleV2Mutation_(body) {
+  const action = clean_(body.action);
+  const payload = body.payload && typeof body.payload === "object" ? body.payload : body;
+  const requestId = clean_(body.request_id || body.requestId || payload.request_id || payload.requestId || Utilities.getUuid());
+  const existingReceipt = findMutationReceipt_(requestId);
+  if (existingReceipt) return json({ ok: existingReceipt.status === "success", receipt: existingReceipt });
+
+  const user = validateToken(body.token);
+  if (!user) {
+    writeMutationReceipt_({
+      requestId,
+      userId: "",
+      institutionId: DEFAULT_INSTITUTION_ID,
+      action,
+      entityType: mutationEntityType_(action),
+      entityId: clean_(payload.id),
+      status: "error",
+      errorCode: "INVALID_TOKEN",
+      errorMessage: "invalid token"
+    });
+    return json({ ok: false, error: "invalid token", request_id: requestId });
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+
+  try {
+    const repeatedReceipt = findMutationReceipt_(requestId);
+    if (repeatedReceipt) return json({ ok: repeatedReceipt.status === "success", receipt: repeatedReceipt });
+
+    const result = performV2Mutation_(action, payload, user, requestId);
+    writeMutationReceipt_({
+      requestId,
+      userId: user.id,
+      institutionId: result.institution_id || user.institution_id || DEFAULT_INSTITUTION_ID,
+      action,
+      entityType: result.entity_type || mutationEntityType_(action),
+      entityId: result.entity_id || clean_(payload.id),
+      status: "success",
+      errorCode: "",
+      errorMessage: ""
+    });
+    return json({ ok: true, request_id: requestId, receipt: findMutationReceipt_(requestId), data: result.data || {} });
+  } catch (err) {
+    writeMutationReceipt_({
+      requestId,
+      userId: user.id,
+      institutionId: user.institution_id || DEFAULT_INSTITUTION_ID,
+      action,
+      entityType: mutationEntityType_(action),
+      entityId: clean_(payload.id),
+      status: "error",
+      errorCode: err.code || "MUTATION_ERROR",
+      errorMessage: err.message
+    });
+    return json({ ok: false, error: err.message, request_id: requestId });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function performV2Mutation_(action, payload, user, requestId) {
+  if (action.indexOf("institutions.") === 0) return mutateInstitution_(action, payload, user, requestId);
+  if (action.indexOf("orgUnits.") === 0) return mutateOrgUnit_(action, payload, user, requestId);
+  if (action.indexOf("auditCycles.") === 0) return mutateAuditCycle_(action, payload, user, requestId);
+  if (action.indexOf("audits.") === 0) return mutateAudit_(action, payload, user, requestId);
+  if (action.indexOf("findings.") === 0) return mutateFinding_(action, payload, user, requestId);
+  if (action.indexOf("correctiveActions.") === 0) return mutateCorrectiveAction_(action, payload, user, requestId);
+  if (action.indexOf("users.") === 0) return mutateUser_(action, payload, user, requestId);
+  if (action === "settings.update") return mutateSetting_(payload, user, requestId);
+  throw appError_("UNKNOWN_ACTION", "unknown action");
+}
+
+function mutationEntityType_(action) {
+  if (action.indexOf("institutions.") === 0) return "institution";
+  if (action.indexOf("orgUnits.") === 0) return "org_unit";
+  if (action.indexOf("auditCycles.") === 0) return "audit_cycle";
+  if (action.indexOf("audits.") === 0) return "audit";
+  if (action.indexOf("findings.") === 0) return "finding";
+  if (action.indexOf("correctiveActions.") === 0) return "corrective_action";
+  if (action.indexOf("users.") === 0) return "user";
+  if (action.indexOf("settings.") === 0) return "setting";
+  return "record";
+}
+
+function listInstitutions_(user) {
+  const records = getSheetObjects_(SHEET_INSTITUTIONS)
+    .filter(record => !record.deleted_at)
+    .filter(record => isSuperAdmin_(user) || record.id === user.institution_id);
+  return apiOk_({ institutions: records });
+}
+
+function getInstitution_(user, institutionId) {
+  const record = getRecordById_(SHEET_INSTITUTIONS, institutionId || user.institution_id);
+  if (!record || record.deleted_at) return apiError_("NOT_FOUND", "Institusi tidak ditemui.");
+  if (!canAccessInstitution_(user, record.id)) return apiError_("FORBIDDEN", "forbidden");
+  return apiOk_({ institution: record });
+}
+
+function listTenantRecords_(sheetName, user, p) {
+  const records = getSheetObjects_(sheetName)
+    .filter(record => !record.deleted_at)
+    .filter(record => tenantFilter_(record, user))
+    .filter(record => !p.status || String(record.status || "") === String(p.status));
+  return apiOk_({ records });
+}
+
+function listUsers_(user, p) {
+  if (!roleCan_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN])) {
+    return apiError_("FORBIDDEN", "forbidden");
+  }
+  const records = getSheetObjects_(SHEET_USERS)
+    .map(userRecordFromRowObject_)
+    .filter(record => !record.deactivated_at)
+    .filter(record => tenantFilter_(record, user))
+    .filter(record => !p.role || normalizeV2Role_(record.role) === normalizeV2Role_(p.role))
+    .map(sanitizeUserRecord_);
+  return apiOk_({ users: records });
+}
+
+function listFindings_(user, p) {
+  const records = getFindingsForUser_(user, p);
+  return apiOk_({ findings: records });
+}
+
+function getFinding_(user, id) {
+  const finding = getRecordById_(SHEET_FINDINGS, id);
+  if (!finding || finding.deleted_at) return apiError_("NOT_FOUND", "Penemuan tidak ditemui.");
+  if (!tenantFilter_(finding, user)) return apiError_("FORBIDDEN", "forbidden");
+  const units = getSheetObjects_(SHEET_FINDING_UNITS)
+    .filter(record => record.finding_id === finding.id && tenantFilter_(record, user));
+  const actions = getSheetObjects_(SHEET_CORRECTIVE_ACTIONS)
+    .filter(record => record.finding_id === finding.id && !record.deleted_at && tenantFilter_(record, user));
+  return apiOk_({ finding, units, actions });
+}
+
+function listCorrectiveActions_(user, p) {
+  const records = getSheetObjects_(SHEET_CORRECTIVE_ACTIONS)
+    .filter(record => !record.deleted_at)
+    .filter(record => tenantFilter_(record, user))
+    .filter(record => !p.finding_id || record.finding_id === p.finding_id)
+    .map(record => ({
+      ...record,
+      overdue: isCorrectiveActionOverdue_(record)
+    }));
+  return apiOk_({ corrective_actions: records });
+}
+
+function getDashboardSummary_(user, p) {
+  const findings = getFindingsForUser_(user, p);
+  const actions = getSheetObjects_(SHEET_CORRECTIVE_ACTIONS)
+    .filter(record => !record.deleted_at)
+    .filter(record => tenantFilter_(record, user));
+  const levels = getRiskLevelMap_();
+  const levelLabels = ["Kritikal", "Tinggi", "Sederhana", "Rendah"];
+  const counts = { Kritikal: 0, Tinggi: 0, Sederhana: 0, Rendah: 0 };
+  let scoreTotal = 0;
+
+  findings.forEach(finding => {
+    const level = levels.get(finding.final_level_id || finding.calculated_level_id);
+    if (level && counts[level.label] !== undefined) counts[level.label] += 1;
+    scoreTotal += Number(finding.calculated_score || 0);
+  });
+
+  const total = findings.length;
+  const highCritical = counts.Kritikal + counts.Tinggi;
+  const overall = chooseOverallRiskLevel_(counts);
+  const categorySummary = summarizeCategories_(findings, levels);
+
+  return apiOk_({
+    summary: {
+      total_findings: total,
+      counts,
+      high_critical_count: highCritical,
+      high_critical_percent: total ? Math.round((highCritical / total) * 100) : 0,
+      average_score: total ? Number((scoreTotal / total).toFixed(2)) : 0,
+      overall_level: overall,
+      unreviewed: findings.filter(finding => ["draft", "submitted", "returned"].indexOf(finding.workflow_status) !== -1).length,
+      overdue_actions: actions.filter(isCorrectiveActionOverdue_).length,
+      awaiting_verification: actions.filter(action => action.status === "awaiting_verification").length,
+      level_order: levelLabels,
+      categories: categorySummary
+    }
+  });
+}
+
+function getReportDataset_(user, p) {
+  const findings = getFindingsForUser_(user, { ...p, workflow_status: p.include_draft === "true" ? "" : "approved" });
+  const levels = getRiskLevelMap_();
+  const institution = getRecordById_(SHEET_INSTITUTIONS, user.institution_id) || {};
+  const actions = getSheetObjects_(SHEET_CORRECTIVE_ACTIONS)
+    .filter(record => !record.deleted_at)
+    .filter(record => tenantFilter_(record, user));
+  return apiOk_({
+    report: {
+      institution,
+      generated_at: nowIso_(),
+      findings,
+      risk_matrix: getRiskMatrixData_(),
+      overall: getDashboardSummaryObject_(findings, actions, levels),
+      categories: summarizeCategories_(findings, levels),
+      actions
+    }
+  });
+}
+
+function mutateInstitution_(action, payload, user, requestId) {
+  if (!isSuperAdmin_(user)) throw appError_("FORBIDDEN", "Hanya super admin boleh mengurus institusi.");
+  if (action === "institutions.create") {
+    const now = nowIso_();
+    const id = clean_(payload.id) || `inst_${Utilities.getUuid()}`;
+    const record = {
+      id,
+      code: required_(payload.code, "Kod institusi"),
+      name: required_(payload.name, "Nama institusi"),
+      short_name: clean_(payload.short_name || payload.code),
+      ministry: clean_(payload.ministry),
+      address: clean_(payload.address),
+      logo_url: clean_(payload.logo_url || LOGO_URL),
+      report_title: clean_(payload.report_title || "Analisis Penilaian Risiko Audit Dalam"),
+      status: clean_(payload.status || "active"),
+      created_at: now,
+      created_by: user.id,
+      updated_at: now,
+      updated_by: user.id,
+      deleted_at: "",
+      deleted_by: ""
+    };
+    appendRecord_(SHEET_INSTITUTIONS, record);
+    auditChange_(user, "institutions.create", "institution", id, requestId, "", record);
+    return mutationResult_("institution", id, record);
+  }
+
+  const id = required_(payload.id, "ID institusi");
+  const before = requireRecordForMutation_(SHEET_INSTITUTIONS, id, user);
+  if (action === "institutions.delete") {
+    const after = softDeleteRecord_(SHEET_INSTITUTIONS, id, user);
+    auditChange_(user, action, "institution", id, requestId, before, after);
+    return mutationResult_("institution", id, after);
+  }
+  if (action === "institutions.restore") {
+    const after = restoreRecord_(SHEET_INSTITUTIONS, id, user);
+    auditChange_(user, action, "institution", id, requestId, before, after);
+    return mutationResult_("institution", id, after);
+  }
+
+  const after = updateRecord_(SHEET_INSTITUTIONS, id, {
+    code: clean_(payload.code || before.code),
+    name: clean_(payload.name || before.name),
+    short_name: clean_(payload.short_name || before.short_name),
+    ministry: clean_(payload.ministry || before.ministry),
+    address: clean_(payload.address || before.address),
+    logo_url: clean_(payload.logo_url || before.logo_url),
+    report_title: clean_(payload.report_title || before.report_title),
+    status: clean_(payload.status || before.status || "active"),
+    updated_at: nowIso_(),
+    updated_by: user.id
+  });
+  auditChange_(user, action, "institution", id, requestId, before, after);
+  return mutationResult_("institution", id, after);
+}
+
+function mutateOrgUnit_(action, payload, user, requestId) {
+  requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN]);
+  const sheetName = SHEET_ORG_UNITS;
+  if (action === "orgUnits.create") {
+    const now = nowIso_();
+    const institutionId = scopedInstitutionId_(payload, user);
+    const id = clean_(payload.id) || `unit_${Utilities.getUuid()}`;
+    const record = {
+      id,
+      institution_id: institutionId,
+      code: required_(payload.code, "Kod PTJ"),
+      name: required_(payload.name, "Nama PTJ"),
+      unit_type: clean_(payload.unit_type || "Unit"),
+      parent_unit_id: clean_(payload.parent_unit_id),
+      status: clean_(payload.status || "active"),
+      created_at: now,
+      created_by: user.id,
+      updated_at: now,
+      updated_by: user.id,
+      deleted_at: "",
+      deleted_by: ""
+    };
+    appendRecord_(sheetName, record);
+    auditChange_(user, action, "org_unit", id, requestId, "", record);
+    return mutationResult_("org_unit", id, record, institutionId);
+  }
+  return mutateTenantSoftRecord_(action, payload, user, requestId, sheetName, "org_unit", {
+    code: "Kod PTJ",
+    name: "Nama PTJ",
+    unit_type: "Unit"
+  });
+}
+
+function mutateAuditCycle_(action, payload, user, requestId) {
+  requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN]);
+  const sheetName = SHEET_AUDIT_CYCLES;
+  if (action === "auditCycles.create") {
+    const now = nowIso_();
+    const institutionId = scopedInstitutionId_(payload, user);
+    const id = clean_(payload.id) || `cycle_${Utilities.getUuid()}`;
+    const record = {
+      id,
+      institution_id: institutionId,
+      title: required_(payload.title, "Tajuk kitaran audit"),
+      audit_year: clean_(payload.audit_year || new Date().getFullYear()),
+      start_date: clean_(payload.start_date),
+      end_date: clean_(payload.end_date),
+      status: clean_(payload.status || "open"),
+      report_reference: clean_(payload.report_reference),
+      finalized_at: "",
+      finalized_by: "",
+      created_at: now,
+      created_by: user.id,
+      updated_at: now,
+      updated_by: user.id,
+      deleted_at: "",
+      deleted_by: ""
+    };
+    appendRecord_(sheetName, record);
+    auditChange_(user, action, "audit_cycle", id, requestId, "", record);
+    return mutationResult_("audit_cycle", id, record, institutionId);
+  }
+  const id = required_(payload.id, "ID kitaran audit");
+  const before = requireRecordForMutation_(sheetName, id, user);
+  if (action === "auditCycles.finalize") {
+    const after = updateRecord_(sheetName, id, {
+      status: "finalized",
+      finalized_at: nowIso_(),
+      finalized_by: user.id,
+      updated_at: nowIso_(),
+      updated_by: user.id
+    });
+    auditChange_(user, action, "audit_cycle", id, requestId, before, after);
+    return mutationResult_("audit_cycle", id, after, before.institution_id);
+  }
+  return mutateTenantSoftRecord_(action, payload, user, requestId, sheetName, "audit_cycle", {
+    title: "Tajuk kitaran audit",
+    audit_year: "Tahun audit",
+    status: "open"
+  });
+}
+
+function mutateAudit_(action, payload, user, requestId) {
+  requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN]);
+  const sheetName = SHEET_AUDITS;
+  if (action === "audits.create") {
+    const now = nowIso_();
+    const institutionId = scopedInstitutionId_(payload, user);
+    const id = clean_(payload.id) || `audit_${Utilities.getUuid()}`;
+    const record = {
+      id,
+      institution_id: institutionId,
+      cycle_id: required_(payload.cycle_id, "Kitaran audit"),
+      audit_code: required_(payload.audit_code, "Kod audit"),
+      title: required_(payload.title, "Tajuk audit"),
+      scope: clean_(payload.scope),
+      objective: clean_(payload.objective),
+      lead_auditor_user_id: clean_(payload.lead_auditor_user_id || user.id),
+      start_date: clean_(payload.start_date),
+      end_date: clean_(payload.end_date),
+      status: clean_(payload.status || "open"),
+      created_at: now,
+      created_by: user.id,
+      updated_at: now,
+      updated_by: user.id,
+      deleted_at: "",
+      deleted_by: ""
+    };
+    appendRecord_(sheetName, record);
+    auditChange_(user, action, "audit", id, requestId, "", record);
+    return mutationResult_("audit", id, record, institutionId);
+  }
+  return mutateTenantSoftRecord_(action, payload, user, requestId, sheetName, "audit", {
+    audit_code: "Kod audit",
+    title: "Tajuk audit",
+    status: "open"
+  });
+}
+
+function mutateFinding_(action, payload, user, requestId) {
+  const sheetName = SHEET_FINDINGS;
+  if (action === "findings.create") {
+    requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_AUDITOR, ROLE_REVIEWER]);
+    const now = nowIso_();
+    const institutionId = scopedInstitutionId_(payload, user);
+    const risk = calculateRisk_(payload.likelihood, payload.impact);
+    const id = clean_(payload.id) || `finding_${Utilities.getUuid()}`;
+    const record = {
+      id,
+      institution_id: institutionId,
+      cycle_id: required_(payload.cycle_id, "Kitaran audit"),
+      audit_id: clean_(payload.audit_id),
+      category_id: required_(payload.category_id || findRiskCategoryIdByName_(payload.risk_category), "Kategori risiko"),
+      finding_no: clean_(payload.finding_no || nextFindingNo_()),
+      title: required_(payload.title || payload.finding_title, "Tajuk isu"),
+      issue_description: required_(payload.issue_description || payload.message, "Huraian isu"),
+      detailed_justification: clean_(payload.detailed_justification || payload.issue_description || payload.message),
+      root_cause: clean_(payload.root_cause),
+      impact_description: clean_(payload.impact_description),
+      audit_evidence: clean_(payload.audit_evidence),
+      recommendation: clean_(payload.recommendation),
+      likelihood: risk.likelihood,
+      impact: risk.impact,
+      calculated_score: risk.score,
+      calculated_level_id: risk.levelId,
+      final_level_id: risk.levelId,
+      override_reason: "",
+      workflow_status: clean_(payload.workflow_status || "draft"),
+      review_note: "",
+      created_at: now,
+      created_by: user.id,
+      updated_at: now,
+      updated_by: user.id,
+      submitted_at: "",
+      submitted_by: "",
+      reviewed_at: "",
+      reviewed_by: "",
+      approved_at: "",
+      approved_by: "",
+      deleted_at: "",
+      deleted_by: "",
+      row_version: 1
+    };
+    appendRecord_(sheetName, record);
+    linkFindingUnits_(id, institutionId, payload.unit_ids || payload.unit_id || payload.org_unit, user);
+    auditChange_(user, action, "finding", id, requestId, "", record);
+    return mutationResult_("finding", id, record, institutionId);
+  }
+
+  const id = required_(payload.id, "ID penemuan");
+  const before = requireRecordForMutation_(sheetName, id, user);
+  ensureCycleIsEditable_(before.cycle_id);
+
+  if (action === "findings.delete") {
+    const after = softDeleteRecord_(sheetName, id, user);
+    auditChange_(user, action, "finding", id, requestId, before, after);
+    return mutationResult_("finding", id, after, before.institution_id);
+  }
+  if (action === "findings.restore") {
+    const after = restoreRecord_(sheetName, id, user);
+    auditChange_(user, action, "finding", id, requestId, before, after);
+    return mutationResult_("finding", id, after, before.institution_id);
+  }
+  if (action === "findings.submit") {
+    assertCanEditFinding_(user, before);
+    const after = updateRecord_(sheetName, id, {
+      workflow_status: "submitted",
+      submitted_at: nowIso_(),
+      submitted_by: user.id,
+      updated_at: nowIso_(),
+      updated_by: user.id
+    });
+    auditChange_(user, action, "finding", id, requestId, before, after);
+    return mutationResult_("finding", id, after, before.institution_id);
+  }
+  if (action === "findings.return") {
+    requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_REVIEWER]);
+    const after = updateRecord_(sheetName, id, {
+      workflow_status: "returned",
+      review_note: required_(payload.review_note, "Catatan semakan"),
+      reviewed_at: nowIso_(),
+      reviewed_by: user.id,
+      updated_at: nowIso_(),
+      updated_by: user.id
+    });
+    auditChange_(user, action, "finding", id, requestId, before, after);
+    return mutationResult_("finding", id, after, before.institution_id);
+  }
+  if (action === "findings.approve") {
+    requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_REVIEWER]);
+    const after = updateRecord_(sheetName, id, {
+      workflow_status: "approved",
+      review_note: clean_(payload.review_note || before.review_note),
+      reviewed_at: nowIso_(),
+      reviewed_by: user.id,
+      approved_at: nowIso_(),
+      approved_by: user.id,
+      updated_at: nowIso_(),
+      updated_by: user.id
+    });
+    auditChange_(user, action, "finding", id, requestId, before, after);
+    return mutationResult_("finding", id, after, before.institution_id);
+  }
+  if (action === "findings.overrideLevel") {
+    requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_REVIEWER]);
+    const finalLevelId = required_(payload.final_level_id, "Tahap akhir");
+    const reason = required_(payload.override_reason, "Sebab override");
+    const after = updateRecord_(sheetName, id, {
+      final_level_id: finalLevelId,
+      override_reason: reason,
+      reviewed_at: nowIso_(),
+      reviewed_by: user.id,
+      updated_at: nowIso_(),
+      updated_by: user.id
+    });
+    auditChange_(user, action, "finding", id, requestId, before, after);
+    return mutationResult_("finding", id, after, before.institution_id);
+  }
+
+  assertCanEditFinding_(user, before);
+  const risk = calculateRisk_(payload.likelihood || before.likelihood, payload.impact || before.impact);
+  const after = updateRecord_(sheetName, id, {
+    category_id: clean_(payload.category_id || before.category_id),
+    title: clean_(payload.title || before.title),
+    issue_description: clean_(payload.issue_description || before.issue_description),
+    detailed_justification: clean_(payload.detailed_justification || before.detailed_justification),
+    root_cause: clean_(payload.root_cause || before.root_cause),
+    impact_description: clean_(payload.impact_description || before.impact_description),
+    audit_evidence: clean_(payload.audit_evidence || before.audit_evidence),
+    recommendation: clean_(payload.recommendation || before.recommendation),
+    likelihood: risk.likelihood,
+    impact: risk.impact,
+    calculated_score: risk.score,
+    calculated_level_id: risk.levelId,
+    final_level_id: before.final_level_id || risk.levelId,
+    updated_at: nowIso_(),
+    updated_by: user.id
+  });
+  auditChange_(user, action, "finding", id, requestId, before, after);
+  return mutationResult_("finding", id, after, before.institution_id);
+}
+
+function mutateCorrectiveAction_(action, payload, user, requestId) {
+  const sheetName = SHEET_CORRECTIVE_ACTIONS;
+  if (action === "correctiveActions.create") {
+    requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_AUDITOR, ROLE_REVIEWER]);
+    const now = nowIso_();
+    const finding = requireRecordForMutation_(SHEET_FINDINGS, required_(payload.finding_id, "ID penemuan"), user);
+    const id = clean_(payload.id) || `action_${Utilities.getUuid()}`;
+    const record = {
+      id,
+      institution_id: finding.institution_id,
+      finding_id: finding.id,
+      action_text: required_(payload.action_text, "Tindakan"),
+      owner_user_id: clean_(payload.owner_user_id),
+      owner_name: clean_(payload.owner_name),
+      owner_unit_id: clean_(payload.owner_unit_id),
+      target_date: clean_(payload.target_date),
+      status: clean_(payload.status || "open"),
+      progress_percent: Number(payload.progress_percent || 0),
+      progress_note: clean_(payload.progress_note),
+      completion_evidence: clean_(payload.completion_evidence),
+      submitted_for_verification_at: "",
+      verified_at: "",
+      verified_by: "",
+      verification_note: "",
+      created_at: now,
+      created_by: user.id,
+      updated_at: now,
+      updated_by: user.id,
+      deleted_at: "",
+      deleted_by: "",
+      row_version: 1
+    };
+    appendRecord_(sheetName, record);
+    auditChange_(user, action, "corrective_action", id, requestId, "", record);
+    return mutationResult_("corrective_action", id, record, finding.institution_id);
+  }
+
+  const id = required_(payload.id, "ID tindakan");
+  const before = requireRecordForMutation_(sheetName, id, user);
+  if (action === "correctiveActions.submitForVerification") {
+    const after = updateRecord_(sheetName, id, {
+      status: "awaiting_verification",
+      progress_percent: 100,
+      progress_note: clean_(payload.progress_note || before.progress_note),
+      completion_evidence: clean_(payload.completion_evidence || before.completion_evidence),
+      submitted_for_verification_at: nowIso_(),
+      updated_at: nowIso_(),
+      updated_by: user.id
+    });
+    auditChange_(user, action, "corrective_action", id, requestId, before, after);
+    return mutationResult_("corrective_action", id, after, before.institution_id);
+  }
+  if (action === "correctiveActions.verify") {
+    requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_REVIEWER]);
+    const after = updateRecord_(sheetName, id, {
+      status: clean_(payload.status || "verified"),
+      verified_at: nowIso_(),
+      verified_by: user.id,
+      verification_note: clean_(payload.verification_note),
+      updated_at: nowIso_(),
+      updated_by: user.id
+    });
+    auditChange_(user, action, "corrective_action", id, requestId, before, after);
+    return mutationResult_("corrective_action", id, after, before.institution_id);
+  }
+  const after = updateRecord_(sheetName, id, {
+    action_text: clean_(payload.action_text || before.action_text),
+    owner_user_id: clean_(payload.owner_user_id || before.owner_user_id),
+    owner_name: clean_(payload.owner_name || before.owner_name),
+    owner_unit_id: clean_(payload.owner_unit_id || before.owner_unit_id),
+    target_date: clean_(payload.target_date || before.target_date),
+    status: clean_(payload.status || before.status),
+    progress_percent: Number(payload.progress_percent || before.progress_percent || 0),
+    progress_note: clean_(payload.progress_note || before.progress_note),
+    completion_evidence: clean_(payload.completion_evidence || before.completion_evidence),
+    updated_at: nowIso_(),
+    updated_by: user.id
+  });
+  auditChange_(user, action, "corrective_action", id, requestId, before, after);
+  return mutationResult_("corrective_action", id, after, before.institution_id);
+}
+
+function mutateUser_(action, payload, user, requestId) {
+  requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN]);
+  if (action === "users.create") {
+    const username = required_(payload.username, "Nama pengguna");
+    if (findUserIdByUsername_(username)) throw appError_("DUPLICATE_USER", "Nama pengguna sudah wujud.");
+    const password = String(payload.password || "");
+    if (password.length < 8) throw appError_("VALIDATION_ERROR", "Kata laluan mesti sekurang-kurangnya 8 aksara.");
+    const institutionId = scopedInstitutionId_(payload, user);
+    const id = clean_(payload.id) || Utilities.getUuid();
+    const record = [id, username, hashPassword_(password), normalizeLegacyRoleForClient_(payload.role), nowIso_()];
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
+    sheet.appendRow(record);
+    const rowNumber = sheet.getLastRow();
+    setExtraField_(sheet, rowNumber, "institution_id", institutionId);
+    setExtraField_(sheet, rowNumber, "display_name", clean_(payload.display_name || username));
+    setExtraField_(sheet, rowNumber, "email", clean_(payload.email));
+    setExtraField_(sheet, rowNumber, "status", "active");
+    setExtraField_(sheet, rowNumber, "updated_at", nowIso_());
+    setExtraField_(sheet, rowNumber, "updated_by", user.id);
+    const after = userRecordFromRowObject_({ id, username, password: "", role: record[3], created_at: record[4], institution_id: institutionId });
+    auditChange_(user, action, "user", id, requestId, "", sanitizeUserRecord_(after));
+    return mutationResult_("user", id, sanitizeUserRecord_(after), institutionId);
+  }
+  const id = required_(payload.id, "ID pengguna");
+  const before = findUserMutableRecord_(id);
+  if (!before) throw appError_("NOT_FOUND", "Pengguna tidak ditemui.");
+  if (!tenantFilter_(before, user)) throw appError_("FORBIDDEN", "forbidden");
+  const row = before.row_number;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
+  if (action === "users.deactivate") {
+    setExtraField_(sheet, row, "deactivated_at", nowIso_());
+    setExtraField_(sheet, row, "deactivated_by", user.id);
+  } else {
+    if (payload.role) sheet.getRange(row, 4).setValue(normalizeLegacyRoleForClient_(payload.role));
+    if (payload.password) sheet.getRange(row, 3).setValue(hashPassword_(String(payload.password)));
+  }
+  const after = findUserMutableRecord_(id);
+  auditChange_(user, action, "user", id, requestId, sanitizeUserRecord_(before), sanitizeUserRecord_(after));
+  return mutationResult_("user", id, sanitizeUserRecord_(after), after.institution_id);
+}
+
+function mutateSetting_(payload, user, requestId) {
+  requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN]);
+  const key = required_(payload.key, "Key tetapan");
+  const value = clean_(payload.value);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SETTINGS);
+  const headers = getSheetHeaders_(sheet);
+  const rows = sheet.getDataRange().getValues();
+  let rowNumber = 0;
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0] || "") === key) rowNumber = i + 1;
+  }
+  const record = {
+    key,
+    value,
+    scope_type: clean_(payload.scope_type || "institution"),
+    scope_id: scopedInstitutionId_(payload, user),
+    updated_at: nowIso_(),
+    updated_by: user.id
+  };
+  if (rowNumber) {
+    sheet.getRange(rowNumber, 2).setValue(value);
+    setOptionalCell_(sheet, headers, rowNumber, "scope_type", record.scope_type);
+    setOptionalCell_(sheet, headers, rowNumber, "scope_id", record.scope_id);
+    setOptionalCell_(sheet, headers, rowNumber, "updated_at", record.updated_at);
+    setOptionalCell_(sheet, headers, rowNumber, "updated_by", record.updated_by);
+  } else {
+    sheet.appendRow(headers.map(header => record[header] !== undefined ? record[header] : ""));
+  }
+  const after = record;
+  auditChange_(user, "settings.update", "setting", key, requestId, "", after);
+  return mutationResult_("setting", key, after, user.institution_id);
+}
+
+function apiOk_(data) {
+  return json({
+    ok: true,
+    data,
+    error: null,
+    meta: {
+      requestId: Utilities.getUuid(),
+      timestamp: nowIso_()
+    }
+  });
+}
+
+function apiError_(code, message, fields) {
+  return json({
+    ok: false,
+    data: null,
+    error: {
+      code,
+      message,
+      fields: fields || {}
+    },
+    meta: {
+      requestId: Utilities.getUuid(),
+      timestamp: nowIso_()
+    }
+  });
+}
+
+function appError_(code, message) {
+  const err = new Error(message);
+  err.code = code;
+  return err;
+}
+
+function publicUser_(user) {
+  return sanitizeUserRecord_({
+    id: user.id,
+    username: user.username,
+    display_name: user.display_name || user.username,
+    email: user.email || "",
+    institution_id: user.institution_id || DEFAULT_INSTITUTION_ID,
+    role: normalizeV2Role_(user.role),
+    legacy_role: user.role
+  });
+}
+
+function logoutSession_(token, user) {
+  token = clean_(token);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESSIONS);
+  const headers = ensureHeadersPresent_(sheet, ["revoked_at", "last_seen_at"]);
+  const rows = sheet.getDataRange().getValues();
+  const tokenHash = hashPassword_(token);
+  const revokedCol = headers.indexOf("revoked_at") + 1;
+
+  for (let i = 1; i < rows.length; i++) {
+    const rawToken = String(rows[i][0] || "");
+    const storedHash = String(rows[i][headers.indexOf("token_hash")] || "");
+    if ((rawToken === token || storedHash === tokenHash) && String(rows[i][1] || "") === String(user.id)) {
+      sheet.getRange(i + 1, revokedCol).setValue(nowIso_());
+    }
+  }
+  return apiOk_({ logged_out: true });
+}
+
+function getHeadersForSheet_(sheetName) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  return getSheetHeaders_(sheet);
+}
+
+function getSheetHeaders_(sheet) {
+  return sheet
+    .getRange(1, 1, 1, sheet.getLastColumn())
+    .getValues()[0]
+    .map(header => clean_(header));
+}
+
+function ensureHeadersPresent_(sheet, headersToAdd) {
+  const headers = getSheetHeaders_(sheet);
+  headersToAdd.forEach(header => {
+    if (headers.indexOf(header) !== -1) return;
+    const nextColumn = sheet.getLastColumn() + 1;
+    sheet.getRange(1, nextColumn).setValue(header);
+    headers.push(header);
+  });
+  return headers;
+}
+
+function getSheetObjects_(sheetName) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  const headers = getSheetHeaders_(sheet);
+  return sheet
+    .getRange(2, 1, lastRow - 1, headers.length)
+    .getValues()
+    .filter(row => row.some(value => value !== ""))
+    .map((row, index) => {
+      const record = Object.fromEntries(headers.map((header, columnIndex) => [header, formatValue_(row[columnIndex])]));
+      record.row_number = index + 2;
+      return record;
+    });
+}
+
+function getRecordById_(sheetName, id) {
+  id = clean_(id);
+  if (!id) return null;
+  return getSheetObjects_(sheetName).find(record => String(record.id || "") === id) || null;
+}
+
+function appendRecord_(sheetName, record) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  const headers = getSheetHeaders_(sheet);
+  sheet.appendRow(headers.map(header => record[header] !== undefined ? record[header] : ""));
+}
+
+function updateRecord_(sheetName, id, updates) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  const headers = getSheetHeaders_(sheet);
+  const records = getSheetObjects_(sheetName);
+  const record = records.find(item => String(item.id || "") === String(id || ""));
+  if (!record) throw appError_("NOT_FOUND", "Rekod tidak ditemui.");
+  const next = { ...record, ...updates };
+  if (headers.indexOf("row_version") !== -1) {
+    next.row_version = Number(record.row_version || 0) + 1;
+  }
+  delete next.row_number;
+  sheet
+    .getRange(record.row_number, 1, 1, headers.length)
+    .setValues([headers.map(header => next[header] !== undefined ? next[header] : "")]);
+  return getRecordById_(sheetName, id);
+}
+
+function softDeleteRecord_(sheetName, id, user) {
+  return updateRecord_(sheetName, id, {
+    status: "archived",
+    deleted_at: nowIso_(),
+    deleted_by: user.id,
+    updated_at: nowIso_(),
+    updated_by: user.id
+  });
+}
+
+function restoreRecord_(sheetName, id, user) {
+  return updateRecord_(sheetName, id, {
+    status: "active",
+    deleted_at: "",
+    deleted_by: "",
+    updated_at: nowIso_(),
+    updated_by: user.id
+  });
+}
+
+function requireRecordForMutation_(sheetName, id, user) {
+  const record = getRecordById_(sheetName, id);
+  if (!record) throw appError_("NOT_FOUND", "Rekod tidak ditemui.");
+  if (!tenantFilter_(record, user)) throw appError_("FORBIDDEN", "forbidden");
+  return record;
+}
+
+function mutateTenantSoftRecord_(action, payload, user, requestId, sheetName, entityType, editableFields) {
+  const id = required_(payload.id, "ID rekod");
+  const before = requireRecordForMutation_(sheetName, id, user);
+  if (action.endsWith(".delete")) {
+    const afterDelete = softDeleteRecord_(sheetName, id, user);
+    auditChange_(user, action, entityType, id, requestId, before, afterDelete);
+    return mutationResult_(entityType, id, afterDelete, before.institution_id);
+  }
+  if (action.endsWith(".restore")) {
+    const afterRestore = restoreRecord_(sheetName, id, user);
+    auditChange_(user, action, entityType, id, requestId, before, afterRestore);
+    return mutationResult_(entityType, id, afterRestore, before.institution_id);
+  }
+
+  const updates = {
+    updated_at: nowIso_(),
+    updated_by: user.id
+  };
+  Object.keys(editableFields).forEach(field => {
+    if (payload[field] !== undefined) updates[field] = clean_(payload[field]);
+  });
+  const after = updateRecord_(sheetName, id, updates);
+  auditChange_(user, action, entityType, id, requestId, before, after);
+  return mutationResult_(entityType, id, after, before.institution_id);
+}
+
+function mutationResult_(entityType, entityId, data, institutionId) {
+  return {
+    entity_type: entityType,
+    entity_id: entityId,
+    institution_id: institutionId || data?.institution_id || DEFAULT_INSTITUTION_ID,
+    data
+  };
+}
+
+function auditChange_(user, action, entityType, entityId, requestId, beforeRecord, afterRecord) {
+  appendAuditLog_({
+    institutionId: afterRecord?.institution_id || beforeRecord?.institution_id || user.institution_id || DEFAULT_INSTITUTION_ID,
+    userId: user.id,
+    action,
+    entityType,
+    entityId,
+    requestId,
+    beforeJson: beforeRecord ? JSON.stringify(sanitizeAuditRecord_(beforeRecord)) : "",
+    afterJson: afterRecord ? JSON.stringify(sanitizeAuditRecord_(afterRecord)) : ""
+  });
+}
+
+function sanitizeAuditRecord_(record) {
+  const sanitized = { ...record };
+  delete sanitized.password;
+  delete sanitized.password_hash;
+  delete sanitized.password_salt;
+  delete sanitized.token;
+  delete sanitized.token_hash;
+  delete sanitized.row_number;
+  return sanitized;
+}
+
+function userRecordFromRowObject_(record) {
+  return {
+    id: record.id,
+    username: clean_(record.username),
+    display_name: clean_(record.display_name || record.username),
+    email: clean_(record.email),
+    institution_id: clean_(record.institution_id || DEFAULT_INSTITUTION_ID),
+    role: normalizeV2Role_(record.role),
+    legacy_role: normalizeRole_(record.role, ROLE_USER),
+    status: clean_(record.status || "active"),
+    created_at: record.created_at,
+    deactivated_at: record.deactivated_at || "",
+    row_number: record.row_number
+  };
+}
+
+function findUserMutableRecord_(id) {
+  const records = getSheetObjects_(SHEET_USERS);
+  const record = records.find(item => String(item.id || "") === String(id || ""));
+  return record ? userRecordFromRowObject_(record) : null;
+}
+
+function sanitizeUserRecord_(record) {
+  const sanitized = { ...record };
+  delete sanitized.password;
+  delete sanitized.password_hash;
+  delete sanitized.password_salt;
+  delete sanitized.row_number;
+  return sanitized;
+}
+
+function setExtraField_(sheet, rowNumber, header, value) {
+  const headers = ensureHeadersPresent_(sheet, [header]);
+  sheet.getRange(rowNumber, headers.indexOf(header) + 1).setValue(value);
+}
+
+function setOptionalCell_(sheet, headers, rowNumber, header, value) {
+  const index = headers.indexOf(header);
+  if (index !== -1) sheet.getRange(rowNumber, index + 1).setValue(value);
+}
+
+function getFindingsForUser_(user, p) {
+  return getSheetObjects_(SHEET_FINDINGS)
+    .filter(record => !record.deleted_at)
+    .filter(record => tenantFilter_(record, user))
+    .filter(record => !p.cycle_id || record.cycle_id === p.cycle_id)
+    .filter(record => !p.audit_id || record.audit_id === p.audit_id)
+    .filter(record => !p.category_id || record.category_id === p.category_id)
+    .filter(record => !p.workflow_status || record.workflow_status === p.workflow_status)
+    .filter(record => !p.level_id || record.final_level_id === p.level_id || record.calculated_level_id === p.level_id);
+}
+
+function getDashboardSummaryObject_(findings, actions, levels) {
+  const counts = { Kritikal: 0, Tinggi: 0, Sederhana: 0, Rendah: 0 };
+  let scoreTotal = 0;
+  findings.forEach(finding => {
+    const level = levels.get(finding.final_level_id || finding.calculated_level_id);
+    if (level && counts[level.label] !== undefined) counts[level.label] += 1;
+    scoreTotal += Number(finding.calculated_score || 0);
+  });
+  const total = findings.length;
+  const highCritical = counts.Kritikal + counts.Tinggi;
+  return {
+    total_findings: total,
+    counts,
+    high_critical_count: highCritical,
+    high_critical_percent: total ? Math.round((highCritical / total) * 100) : 0,
+    average_score: total ? Number((scoreTotal / total).toFixed(2)) : 0,
+    overall_level: chooseOverallRiskLevel_(counts),
+    overdue_actions: actions.filter(isCorrectiveActionOverdue_).length,
+    awaiting_verification: actions.filter(action => action.status === "awaiting_verification").length
+  };
+}
+
+function summarizeCategories_(findings, levels) {
+  const categories = new Map();
+  findings.forEach(finding => {
+    const category = getRecordById_(SHEET_RISK_CATEGORIES, finding.category_id) || { name: "Tidak dikategorikan" };
+    const level = levels.get(finding.final_level_id || finding.calculated_level_id) || { label: "Rendah", rank: 1 };
+    const item = categories.get(category.name) || {
+      category_id: finding.category_id,
+      category: category.name,
+      issue_count: 0,
+      percent_total: 0,
+      levels: { Kritikal: 0, Tinggi: 0, Sederhana: 0, Rendah: 0 },
+      category_level: "Rendah",
+      category_rank: 1
+    };
+    item.issue_count += 1;
+    if (item.levels[level.label] !== undefined) item.levels[level.label] += 1;
+    if (level.rank > item.category_rank) {
+      item.category_level = level.label;
+      item.category_rank = level.rank;
+    }
+    categories.set(category.name, item);
+  });
+  const total = findings.length;
+  return [...categories.values()].map(item => ({
+    ...item,
+    percent_total: total ? Number(((item.issue_count / total) * 100).toFixed(2)) : 0
+  }));
+}
+
+function chooseOverallRiskLevel_(counts) {
+  const levels = getRiskLevelMap_();
+  return [...levels.values()].reduce((selected, level) => {
+    const currentCount = counts[level.label] || 0;
+    const selectedCount = counts[selected.label] || 0;
+    if (currentCount > selectedCount) return level;
+    if (currentCount === selectedCount && currentCount > 0 && level.rank > selected.rank) return level;
+    return selected;
+  }, { label: "Rendah", rank: 1 }).label;
+}
+
+function getRiskLevelMap_() {
+  const map = new Map();
+  getSheetObjects_(SHEET_RISK_LEVELS)
+    .filter(record => record.status !== "inactive")
+    .forEach(record => map.set(record.id, {
+      id: record.id,
+      code: record.code,
+      label: record.label,
+      rank: Number(record.rank || 1),
+      min_score: Number(record.min_score || 1),
+      max_score: Number(record.max_score || 16),
+      color_hex: record.color_hex,
+      default_due_days: Number(record.default_due_days || 0)
+    }));
+  return map;
+}
+
+function getRiskMatrixData_() {
+  return {
+    likelihood_scale: getSheetObjects_(SHEET_LIKELIHOOD_SCALE).filter(record => record.status === "active"),
+    impact_scale: getSheetObjects_(SHEET_IMPACT_SCALE).filter(record => record.status === "active"),
+    risk_levels: getSheetObjects_(SHEET_RISK_LEVELS).filter(record => record.status === "active")
+  };
+}
+
+function isCorrectiveActionOverdue_(action) {
+  if (!action.target_date) return false;
+  if (["verified", "closed"].indexOf(String(action.status || "")) !== -1) return false;
+  const target = new Date(action.target_date);
+  if (Number.isNaN(target.getTime())) return false;
+  return target.getTime() < Date.now();
+}
+
+function scopedInstitutionId_(payload, user) {
+  if (isSuperAdmin_(user) && payload.institution_id) return clean_(payload.institution_id);
+  return user.institution_id || DEFAULT_INSTITUTION_ID;
+}
+
+function tenantFilter_(record, user) {
+  if (isSuperAdmin_(user)) return true;
+  const institutionId = clean_(record.institution_id || DEFAULT_INSTITUTION_ID);
+  return institutionId === clean_(user.institution_id || DEFAULT_INSTITUTION_ID);
+}
+
+function canAccessInstitution_(user, institutionId) {
+  return isSuperAdmin_(user) || clean_(user.institution_id || DEFAULT_INSTITUTION_ID) === clean_(institutionId);
+}
+
+function roleCan_(user, allowedRoles) {
+  const role = normalizeV2Role_(user.role);
+  return allowedRoles.indexOf(role) !== -1;
+}
+
+function requireRole_(user, allowedRoles) {
+  if (!roleCan_(user, allowedRoles)) throw appError_("FORBIDDEN", "forbidden");
+}
+
+function isSuperAdmin_(user) {
+  return normalizeV2Role_(user.role) === ROLE_SUPER_ADMIN;
+}
+
+function normalizeV2Role_(role) {
+  role = clean_(role).toLowerCase();
+  if (role === ROLE_ADMIN) return ROLE_SUPER_ADMIN;
+  if (role === ROLE_USER) return ROLE_AUDITOR;
+  if ([ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_AUDITOR, ROLE_REVIEWER, ROLE_VIEWER].indexOf(role) !== -1) return role;
+  return ROLE_VIEWER;
+}
+
+function normalizeLegacyRoleForClient_(role) {
+  role = normalizeV2Role_(role);
+  if ([ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_REVIEWER].indexOf(role) !== -1) return ROLE_ADMIN;
+  return ROLE_USER;
+}
+
+function required_(value, label) {
+  const text = clean_(value);
+  if (!text) throw appError_("VALIDATION_ERROR", `${label} wajib diisi.`);
+  return text;
+}
+
+function ensureCycleIsEditable_(cycleId) {
+  if (!cycleId) return;
+  const cycle = getRecordById_(SHEET_AUDIT_CYCLES, cycleId);
+  if (cycle && cycle.status === "finalized") {
+    throw appError_("CYCLE_FINALIZED", "Kitaran audit telah finalized dan read-only.");
+  }
+}
+
+function assertCanEditFinding_(user, finding) {
+  const role = normalizeV2Role_(user.role);
+  if ([ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_REVIEWER].indexOf(role) !== -1) return;
+  if (role !== ROLE_AUDITOR) throw appError_("FORBIDDEN", "forbidden");
+  if (String(finding.created_by || "") !== String(user.id || "")) throw appError_("FORBIDDEN", "forbidden");
+  if (["draft", "returned"].indexOf(String(finding.workflow_status || "draft")) === -1) {
+    throw appError_("WORKFLOW_LOCKED", "Penemuan tidak boleh diedit dalam status semasa.");
+  }
+}
+
+function linkFindingUnits_(findingId, institutionId, unitIds, user) {
+  if (!unitIds) return;
+  const values = Array.isArray(unitIds) ? unitIds : String(unitIds).split(",").map(clean_).filter(Boolean);
+  if (!values.length) return;
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_FINDING_UNITS);
+  const now = nowIso_();
+  const rows = values.map(unitId => [Utilities.getUuid(), institutionId, findingId, unitId, now, user.id]);
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, HEADERS.finding_units.length).setValues(rows);
+}
+
+function nextFindingNo_() {
+  return `SPRAD-${Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyyMMdd-HHmmss")}`;
+}
+
+function nowIso_() {
+  return new Date().toISOString();
+}
+
 // =========== AUTOMATIC SHEET SETUP ===========
 function ensureSheets_() {
   const cache = getScriptCache_();
@@ -689,8 +1878,10 @@ function ensureSheets_() {
   ensureSheet_(SHEET_SESSIONS, HEADERS.sessions);
   ensureSheet_(SHEET_SETTINGS, HEADERS.settings);
   ensureV2Sheets_();
+  ensureCompatibilityColumns_();
   ensureSettings_();
   seedV2Foundation_();
+  seedDummyV2Data_();
   seedDummySettings_();
   seedDummyUsers_();
   seedDummySessions_();
@@ -717,6 +1908,35 @@ function ensureV2Sheets_() {
   ensureSheet_(SHEET_MUTATION_RECEIPTS, HEADERS.mutation_receipts);
 }
 
+function ensureCompatibilityColumns_() {
+  ensureHeadersPresent_(SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS), [
+    "institution_id",
+    "display_name",
+    "email",
+    "password_salt",
+    "status",
+    "failed_login_count",
+    "locked_until",
+    "updated_at",
+    "updated_by",
+    "deactivated_at",
+    "deactivated_by"
+  ]);
+  ensureHeadersPresent_(SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SESSIONS), [
+    "token_hash",
+    "institution_id",
+    "role",
+    "last_seen_at",
+    "revoked_at"
+  ]);
+  ensureHeadersPresent_(SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SETTINGS), [
+    "scope_type",
+    "scope_id",
+    "updated_at",
+    "updated_by"
+  ]);
+}
+
 function ensureSheet_(name, headers) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(name);
@@ -733,7 +1953,7 @@ function ensureSheet_(name, headers) {
 function ensureSettings_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SETTINGS);
   const settings = {
-    schema_version: "2.0-foundation",
+    schema_version: "2.1-blueprint-foundation",
     app_name: APP_NAME,
     logo_url: LOGO_URL,
     favicon_url: FAVICON_URL,
@@ -745,6 +1965,7 @@ function ensureSettings_() {
     dummy_users_target: DUMMY_USERS.length,
     dummy_sessions_target: DUMMY_SESSIONS.length,
     dummy_settings_target: DUMMY_SETTINGS.length,
+    dummy_v2_records_per_table: 10,
     allow_public_registration: "true",
     allow_public_admin_register: String(ALLOW_PUBLIC_ADMIN_REGISTER),
     overall_level_method: "mode_high_tiebreak",
@@ -752,6 +1973,7 @@ function ensureSettings_() {
   };
 
   const rows = sheet.getDataRange().getValues();
+  const headers = getSheetHeaders_(sheet);
   const existing = new Map();
   for (let i = 1; i < rows.length; i++) {
     existing.set(String(rows[i][0] || ""), i + 1);
@@ -759,9 +1981,15 @@ function ensureSettings_() {
 
   const upsert = ([key, value]) => {
     if (existing.has(key)) {
-      sheet.getRange(existing.get(key), 2).setValue(value);
+      const rowNumber = existing.get(key);
+      sheet.getRange(rowNumber, 2).setValue(value);
+      setOptionalCell_(sheet, headers, rowNumber, "scope_type", "system");
+      setOptionalCell_(sheet, headers, rowNumber, "scope_id", "global");
+      setOptionalCell_(sheet, headers, rowNumber, "updated_at", nowIso_());
+      setOptionalCell_(sheet, headers, rowNumber, "updated_by", "system");
     } else {
-      sheet.appendRow([key, value]);
+      const record = { key, value, scope_type: "system", scope_id: "global", updated_at: nowIso_(), updated_by: "system" };
+      sheet.appendRow(headers.map(header => record[header] !== undefined ? record[header] : ""));
     }
   };
 
@@ -791,6 +2019,121 @@ function seedV2Foundation_() {
   seedScale_(SHEET_IMPACT_SCALE);
   seedRiskLevels_();
   seedRiskCategories_();
+}
+
+function seedDummyV2Data_() {
+  const now = Date.now();
+  const nowIso = new Date(now).toISOString();
+  const demoInstitutionRows = Array.from({ length: 10 }, (_, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    const id = `inst_demo_${number}`;
+    return [
+      id,
+      `UNI${number}`,
+      `Universiti Demo ${number}`,
+      `UD${number}`,
+      "Kementerian Pendidikan Tinggi",
+      `Alamat Demo ${number}, Malaysia`,
+      LOGO_URL,
+      "Analisis Penilaian Risiko Audit Dalam",
+      "active",
+      nowIso,
+      "system",
+      nowIso,
+      "system",
+      "",
+      ""
+    ];
+  });
+  appendRowsIfMissing_(SHEET_INSTITUTIONS, 0, demoInstitutionRows, HEADERS.institutions);
+
+  const units = ["Fakulti Teknologi", "Pusat Kesihatan", "Bendahari", "Perpustakaan", "Pejabat Pendaftar", "Unit Kenderaan", "Pusat ICT", "Unit Perolehan", "Unit Keselamatan", "Audit Dalam"];
+  appendRowsIfMissing_(SHEET_ORG_UNITS, 0, units.map((name, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    return [`unit_demo_${number}`, DEFAULT_INSTITUTION_ID, `PTJ${number}`, name, index < 4 ? "Pusat" : "Unit", "", "active", nowIso, "system", nowIso, "system", "", ""];
+  }), HEADERS.org_units);
+
+  appendRowsIfMissing_(SHEET_AUDIT_CYCLES, 0, Array.from({ length: 10 }, (_, index) => {
+    const year = 2017 + index;
+    const number = String(index + 1).padStart(2, "0");
+    return [`cycle_demo_${number}`, DEFAULT_INSTITUTION_ID, `Audit Dalam ${year}`, year, `${year}-01-01`, `${year}-12-31`, index === 9 ? "open" : "closed", `SPRAD/${year}`, "", "", nowIso, "system", nowIso, "system", "", ""];
+  }), HEADERS.audit_cycles);
+
+  appendRowsIfMissing_(SHEET_AUDITS, 0, Array.from({ length: 10 }, (_, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    return [`audit_demo_${number}`, DEFAULT_INSTITUTION_ID, `cycle_demo_${number}`, `AUD-${number}`, `Audit Pengurusan ${units[index]}`, `Skop semakan proses ${units[index]}.`, "Menilai kawalan dalaman dan pematuhan.", "", "2026-01-01", "2026-12-31", "open", nowIso, "system", nowIso, "system", "", ""];
+  }), HEADERS.audits);
+
+  const findingRows = Array.from({ length: 10 }, (_, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    const likelihood = (index % 4) + 1;
+    const impact = ((index + 1) % 4) + 1;
+    const risk = calculateRisk_(likelihood, impact);
+    return [
+      `finding_demo_${number}`,
+      DEFAULT_INSTITUTION_ID,
+      `cycle_demo_${number}`,
+      `audit_demo_${number}`,
+      V2_RISK_CATEGORIES[index % V2_RISK_CATEGORIES.length][0],
+      `SPRAD-2026-${number}`,
+      `Isu audit demo ${number}`,
+      `Huraian isu audit demo ${number} untuk tujuan ujian sistem.`,
+      `Justifikasi terperinci isu demo ${number}.`,
+      "Kawalan proses tidak dipantau secara berkala.",
+      "Risiko kelewatan tindakan pembetulan dan rekod tidak lengkap.",
+      `https://drive.google.com/demo/evidence-${number}`,
+      "Tetapkan pemilik tindakan, tarikh sasaran dan semakan berkala.",
+      likelihood,
+      impact,
+      risk.score,
+      risk.levelId,
+      risk.levelId,
+      "",
+      index < 3 ? "approved" : (index < 6 ? "submitted" : "draft"),
+      "",
+      new Date(now - (index + 1) * 86400000).toISOString(),
+      "system",
+      nowIso,
+      "system",
+      "",
+      "",
+      "",
+      "",
+      index < 3 ? nowIso : "",
+      index < 3 ? "system" : "",
+      "",
+      "",
+      1
+    ];
+  });
+  appendRowsIfMissing_(SHEET_FINDINGS, 0, findingRows, HEADERS.findings);
+
+  appendRowsIfMissing_(SHEET_FINDING_UNITS, 0, Array.from({ length: 10 }, (_, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    return [`finding_unit_demo_${number}`, DEFAULT_INSTITUTION_ID, `finding_demo_${number}`, `unit_demo_${number}`, nowIso, "system"];
+  }), HEADERS.finding_units);
+
+  appendRowsIfMissing_(SHEET_CORRECTIVE_ACTIONS, 0, Array.from({ length: 10 }, (_, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    const target = new Date(now + (index - 3) * 86400000).toISOString().slice(0, 10);
+    const status = index < 2 ? "awaiting_verification" : (index < 5 ? "in_progress" : "open");
+    return [`action_demo_${number}`, DEFAULT_INSTITUTION_ID, `finding_demo_${number}`, `Tindakan pembetulan demo ${number}`, "", `Pemilik ${number}`, `unit_demo_${number}`, target, status, index < 5 ? 60 : 10, "Catatan kemajuan demo.", "", index < 2 ? nowIso : "", "", "", "", nowIso, "system", nowIso, "system", "", "", 1];
+  }), HEADERS.corrective_actions);
+
+  appendRowsIfMissing_(SHEET_ATTACHMENTS, 0, Array.from({ length: 10 }, (_, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    return [`attach_demo_${number}`, DEFAULT_INSTITUTION_ID, "finding", `finding_demo_${number}`, `drive_file_demo_${number}`, `bukti-demo-${number}.pdf`, "application/pdf", `https://drive.google.com/demo/bukti-${number}`, nowIso, "system", "", ""];
+  }), HEADERS.attachments);
+
+  appendRowsIfMissing_(SHEET_AUDIT_LOGS, 0, Array.from({ length: 10 }, (_, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    return [`log_demo_${number}`, DEFAULT_INSTITUTION_ID, "system", "seed.demo", "finding", `finding_demo_${number}`, `seed-request-${number}`, "", JSON.stringify({ seeded: true, index: index + 1 }), nowIso];
+  }), HEADERS.audit_logs);
+
+  appendRowsIfMissing_(SHEET_MUTATION_RECEIPTS, 0, Array.from({ length: 10 }, (_, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    return [`receipt_demo_${number}`, "system", DEFAULT_INSTITUTION_ID, "seed.demo", "finding", `finding_demo_${number}`, "success", "", "", nowIso, nowIso];
+  }), HEADERS.mutation_receipts);
 }
 
 function seedDefaultInstitution_() {
@@ -875,6 +2218,12 @@ function ensureUser_(user) {
       user.role,
       new Date()
     ]);
+    const rowNumber = sheet.getLastRow();
+    setExtraField_(sheet, rowNumber, "institution_id", DEFAULT_INSTITUTION_ID);
+    setExtraField_(sheet, rowNumber, "display_name", user.username);
+    setExtraField_(sheet, rowNumber, "status", "active");
+    setExtraField_(sheet, rowNumber, "updated_at", nowIso_());
+    setExtraField_(sheet, rowNumber, "updated_by", "system");
   }
 }
 
@@ -1153,23 +2502,41 @@ function rowExists_(sheet, columnIndex, value) {
   return rows.slice(1).some(row => String(row[columnIndex - 1] || "") === String(value));
 }
 
-function findUserById_(userId) {
-  const rows = SpreadsheetApp.getActiveSpreadsheet()
-    .getSheetByName(SHEET_USERS)
-    .getDataRange()
-    .getValues();
-
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    if (row[0] === userId) {
-      return {
-        id: row[0],
-        username: clean_(row[1]),
-        role: normalizeRole_(row[3], ROLE_ADMIN)
-      };
-    }
+function appendRowsIfMissing_(sheetName, keyIndex, rows, headers) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (!rows.length) return;
+  const existing = new Set(
+    sheet.getDataRange().getValues().slice(1).map(row => String(row[keyIndex] || ""))
+  );
+  const rowsToAdd = rows
+    .filter(row => !existing.has(String(row[keyIndex] || "")))
+    .map(row => headers.map((_, index) => row[index] !== undefined ? row[index] : ""));
+  if (rowsToAdd.length) {
+    sheet
+      .getRange(sheet.getLastRow() + 1, 1, rowsToAdd.length, headers.length)
+      .setValues(rowsToAdd);
   }
-  return null;
+}
+
+function findUserById_(userId) {
+  const record = getSheetObjects_(SHEET_USERS)
+    .find(row => String(row.id || "") === String(userId || ""));
+  if (!record) return null;
+  const user = userRecordFromRowObject_(record);
+  return {
+    id: user.id,
+    username: user.username,
+    display_name: user.display_name,
+    email: user.email,
+    institution_id: user.institution_id,
+    role: user.legacy_role,
+    v2_role: user.role
+  };
+}
+
+function getUserInstitutionId_(userId) {
+  const user = findUserById_(userId);
+  return user?.institution_id || DEFAULT_INSTITUTION_ID;
 }
 
 function findUserIdByUsername_(username) {
@@ -1219,6 +2586,8 @@ function normalizeRole_(value, fallback) {
   const role = clean_(value).toLowerCase();
   if (role === ROLE_ADMIN) return ROLE_ADMIN;
   if (role === ROLE_USER) return ROLE_USER;
+  if ([ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_REVIEWER].indexOf(role) !== -1) return ROLE_ADMIN;
+  if ([ROLE_AUDITOR, ROLE_VIEWER].indexOf(role) !== -1) return ROLE_USER;
   return fallback || ROLE_USER;
 }
 

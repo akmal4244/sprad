@@ -148,9 +148,9 @@
       validateContactDraft
     } from "./assets/js/core/contact-utils.js";
     import { buildMutationRequest, pollMutationReceipt } from "./assets/js/core/mutation-utils.js";
+    import { buildScopedCacheKey } from "./assets/js/core/storage.js";
 
     const URL = getApiUrl();
-    const CONTACTS_CACHE_KEY = STORAGE_KEYS.contactsCache;
     const list = document.querySelector("#list");
     const logout = document.querySelector("#logout");
     const totalCount = document.querySelector("#totalCount");
@@ -164,6 +164,14 @@
     let currentPage = 1;
     let editingContactId = "";
     let toastTimer;
+
+    function getContactsCacheKey() {
+      return buildScopedCacheKey({
+        userId: localStorage.getItem(STORAGE_KEYS.userId),
+        institutionId: localStorage.getItem(STORAGE_KEYS.institutionId),
+        resource: STORAGE_KEYS.contactsCache
+      });
+    }
 
     function normalizeCleanUrl(route) {
       const storedPath = sessionStorage.getItem("spradCleanPath");
@@ -251,18 +259,18 @@
 
     function getCachedContacts() {
       try {
-        const cached = localStorage.getItem(CONTACTS_CACHE_KEY);
+        const cached = localStorage.getItem(getContactsCacheKey());
         if (!cached) return null;
         const contacts = JSON.parse(cached);
         return Array.isArray(contacts) ? contacts : null;
       } catch (error) {
-        localStorage.removeItem(CONTACTS_CACHE_KEY);
+        localStorage.removeItem(getContactsCacheKey());
         return null;
       }
     }
 
     function saveContactsCache(contacts) {
-      localStorage.setItem(CONTACTS_CACHE_KEY, JSON.stringify(contacts));
+      localStorage.setItem(getContactsCacheKey(), JSON.stringify(contacts));
     }
 
     function escapeHtml(value) {
@@ -420,7 +428,7 @@
     }
 
     async function refreshContactsFromSheets() {
-      localStorage.removeItem(CONTACTS_CACHE_KEY);
+      localStorage.removeItem(getContactsCacheKey());
       await muatMesej({ skipCache: true, keepPage: true, silent: true });
     }
 
@@ -524,6 +532,9 @@
       clearCredentialsIfNotRemembered();
       localStorage.removeItem(STORAGE_KEYS.token);
       localStorage.removeItem(STORAGE_KEYS.role);
+      localStorage.removeItem(STORAGE_KEYS.v2Role);
+      localStorage.removeItem(STORAGE_KEYS.userId);
+      localStorage.removeItem(STORAGE_KEYS.institutionId);
       goToLogin();
     });
 

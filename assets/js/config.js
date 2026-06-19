@@ -10,6 +10,9 @@ export const APP_CONFIG = Object.freeze({
 export const STORAGE_KEYS = Object.freeze({
   token: "token",
   role: "role",
+  v2Role: "spradV2Role",
+  userId: "spradUserId",
+  institutionId: "spradInstitutionId",
   rememberMe: "spradRememberMe",
   username: "spradUsername",
   contactsCache: "spradContactsCache"

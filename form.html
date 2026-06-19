@@ -303,6 +303,9 @@
       clearCredentialsIfNotRemembered();
       localStorage.removeItem(STORAGE_KEYS.token);
       localStorage.removeItem(STORAGE_KEYS.role);
+      localStorage.removeItem(STORAGE_KEYS.v2Role);
+      localStorage.removeItem(STORAGE_KEYS.userId);
+      localStorage.removeItem(STORAGE_KEYS.institutionId);
       window.location.href = "login";
     });
 

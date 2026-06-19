@@ -1,8 +1,9 @@
-# SPRAD V2 Phase 1 Implementation Notes
+# SPRAD V2 Phase 1/2 Foundation Implementation Notes
 
 Tarikh: 2026-06-19
 URL GitHub Pages: `https://akmal4244.github.io/sprad/`
 Skop: Foundation selamat tanpa memutuskan sistem GitHub Pages + Apps Script sedia ada.
+Status terkini: V2.1 blueprint foundation.
 
 ## Matlamat Fasa 1
 
@@ -30,21 +31,27 @@ Keputusan penting:
 | Login | "Ingat saya" hanya menyimpan username. Password lama dibersihkan dari storage. |
 | Register | Public registration hanya untuk `pengguna`. Pentadbir perlu dicipta secara terkawal. |
 | Form | Borang menjadi borang penemuan risiko V2 dengan risk preview. |
-| Backend prep | Folder `apps-script/` menyimpan asas Code.gs kompatibel untuk migrasi V2. |
+| Backend prep | Folder `apps-script/` menyimpan Code.gs V2.1 dengan setup schema, router V2, permission guard, mutation receipt, soft delete, audit log dan dummy data V2. |
+
+## Tambahan V2.1
+
+- Endpoint GET V2: `auth.me`, `auth.logout`, `institutions.*`, `orgUnits.list`, `users.list`, `auditCycles.list`, `audits.list`, `riskCategories.list`, `findings.*`, `correctiveActions.list`, `dashboard.summary`, `reports.dataset`.
+- Mutation V2 idempotent: institusi, PTJ, audit cycle, audit, findings, corrective actions, users dan settings.
+- Cache frontend kini scoped kepada `user_id` + `institution_id`.
+- Modul frontend foundation ditambah: API helper, storage, permissions, validators, formatters dan mutation wrapper.
+- Dokumentasi kontrak dan schema ditambah dalam `docs/API_CONTRACT.md`, `docs/DATA_SCHEMA.md`, `docs/DEPLOYMENT.md`, dan `docs/MANUAL_TEST_CHECKLIST.md`.
 
 ## Had Fasa Ini
 
 Fasa ini belum menyelesaikan semua acceptance criteria blueprint. Ciri berikut masih fasa seterusnya:
 
-- CRUD institusi penuh di UI.
-- CRUD PTJ/org units.
-- CRUD kitaran audit dan audit engagement.
-- Dashboard analitik V2 penuh.
+- CRUD institusi/PTJ/kitaran/audit penuh di UI khusus.
+- Dashboard analitik V2 visual penuh.
 - Workflow reviewer: submit, return, approve, override.
 - Corrective actions penuh.
 - Report print seperti UniMAP.
-- Mutation receipt polling pada semua mutation.
-- Token hash dan salted password penuh di backend live.
+- Salt + pepper penuh untuk password.
+- UI laporan print seperti UniMAP.
 
 ## Strategi Keserasian
 
@@ -71,7 +78,7 @@ npm test
 Expected:
 
 ```text
-4 tests pass
+24+ tests pass
 0 fail
 ```
 
@@ -88,7 +95,7 @@ Smoke test manual:
 ## Fasa Seterusnya Yang Selamat
 
 1. Deploy Apps Script V2 foundation ke Web App.
-2. Tambah `mutations.status` polling untuk submit borang.
-3. Tambah CRUD institusi dan PTJ.
-4. Migrasi `contacts` kepada `legacy_contacts` atau `findings` status `legacy_incomplete`.
-5. Naik taraf dashboard kepada data `findings`.
+2. Bina UI khusus untuk institutions, org units, audit cycles, audits dan findings.
+3. Migrasi `contacts` kepada `legacy_contacts` atau `findings` status `legacy_incomplete`.
+4. Naik taraf dashboard kepada data `findings`.
+5. Bina laporan print seperti UniMAP.

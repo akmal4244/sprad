@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   calculateRisk,
   getRiskLevel,
+  summarizeRiskCategories,
   summarizeRiskLevels,
   validateRiskInput
 } from "../assets/js/core/risk-engine.js";
@@ -53,4 +54,19 @@ test("summarizes overall level by mode with higher-level tie break", () => {
   assert.equal(summary.overallLevel, "Tinggi");
   assert.equal(summary.counts.Kritikal, 1);
   assert.equal(summary.counts.Tinggi, 2);
+});
+
+test("summarizes category level by highest risk level in the category", () => {
+  const categories = summarizeRiskCategories([
+    { risk_category: "Kecuaian", likelihood: 3, impact: 3 },
+    { risk_category: "Kecuaian", likelihood: 2, impact: 3 },
+    { risk_category: "Pembaziran", likelihood: 4, impact: 4 },
+    { risk_category: "Pembaziran", likelihood: 1, impact: 2 }
+  ]);
+
+  assert.equal(categories[0].category, "Pembaziran");
+  assert.equal(categories[0].categoryLevel, "Kritikal");
+  assert.equal(categories[0].issueCount, 2);
+  assert.equal(categories[0].percentOfTotal, 50);
+  assert.equal(categories[1].categoryLevel, "Tinggi");
 });

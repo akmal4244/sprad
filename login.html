@@ -211,6 +211,12 @@
           } else {
             localStorage.removeItem(STORAGE_KEYS.role);
           }
+          if (data.v2_role) localStorage.setItem(STORAGE_KEYS.v2Role, data.v2_role);
+          else localStorage.removeItem(STORAGE_KEYS.v2Role);
+          if (data.user_id) localStorage.setItem(STORAGE_KEYS.userId, data.user_id);
+          else localStorage.removeItem(STORAGE_KEYS.userId);
+          if (data.institution_id) localStorage.setItem(STORAGE_KEYS.institutionId, data.institution_id);
+          else localStorage.removeItem(STORAGE_KEYS.institutionId);
           saveRememberedCredentials();
           window.location.href = role === "pengguna" ? "form" : "view";
           return;

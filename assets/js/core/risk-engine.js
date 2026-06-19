@@ -114,6 +114,41 @@ export function summarizeRiskLevels(risks) {
   };
 }
 
+export function summarizeRiskCategories(findings) {
+  const total = findings.length;
+  const categories = new Map();
+
+  findings.forEach((finding) => {
+    const category = String(finding.category || finding.risk_category || "Tidak dikategorikan").trim();
+    const risk = finding.level
+      ? { level: finding.level, rank: getRankForLevel(finding.level) }
+      : calculateRisk(finding.likelihood, finding.impact);
+    const current = categories.get(category) || {
+      category,
+      issueCount: 0,
+      percentOfTotal: 0,
+      levels: Object.fromEntries(RISK_LEVELS.map((level) => [level.label, 0])),
+      categoryLevel: "Rendah",
+      categoryRank: 1
+    };
+
+    current.issueCount += 1;
+    if (Object.hasOwn(current.levels, risk.level)) current.levels[risk.level] += 1;
+    if (risk.rank > current.categoryRank) {
+      current.categoryLevel = risk.level;
+      current.categoryRank = risk.rank;
+    }
+    categories.set(category, current);
+  });
+
+  return [...categories.values()]
+    .map((category) => ({
+      ...category,
+      percentOfTotal: total ? Number(((category.issueCount / total) * 100).toFixed(2)) : 0
+    }))
+    .sort((left, right) => right.categoryRank - left.categoryRank || right.issueCount - left.issueCount);
+}
+
 function chooseOverallLevel(counts) {
   return RISK_LEVELS.reduce((selected, level) => {
     const currentCount = counts[level.label] || 0;
@@ -123,4 +158,8 @@ function chooseOverallLevel(counts) {
     if (currentCount === selectedCount && currentCount > 0 && level.rank > selected.rank) return level;
     return selected;
   }, RISK_LEVELS[0]).label;
+}
+
+function getRankForLevel(label) {
+  return RISK_LEVELS.find((level) => level.label === label)?.rank || 1;
 }
