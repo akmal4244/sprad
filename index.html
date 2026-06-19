@@ -31,7 +31,7 @@
 
   <header class="bg-white border-b border-gray-100 shadow-sm z-50 h-16 sticky top-0">
     <div class="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-      <a href="index.html" class="flex items-center gap-3">
+      <a href="./" class="flex items-center gap-3">
         <img src="https://www.akm.gov.my/templates/yootheme/cache/91/JATA%20NEGARA%20AI-01-91eac591.webp" alt="Jata Negara" class="h-10 w-10 object-contain drop-shadow-sm">
         <div>
           <p class="text-base font-extrabold tracking-tight text-slate-800">SPRAD</p>
@@ -39,8 +39,8 @@
         </div>
       </a>
       <nav class="hidden items-center gap-6 text-xs font-bold uppercase tracking-wide text-slate-600 sm:flex">
-        <a href="register.html" class="hover:text-blue-600">Daftar</a>
-        <a href="form.html" class="hover:text-blue-600">Borang</a>
+        <a href="register" class="hover:text-blue-600">Daftar</a>
+        <a href="form" class="hover:text-blue-600">Borang</a>
       </nav>
     </div>
   </header>
@@ -103,7 +103,7 @@
           <span id="submitLabel">Log masuk</span>
         </button>
       </form>
-      <p class="pt-5 text-center text-sm font-bold text-slate-500">Belum ada akaun? <a href="register.html" class="text-blue-700 hover:text-blue-800">Daftar akaun</a></p>
+      <p class="pt-5 text-center text-sm font-bold text-slate-500">Belum ada akaun? <a href="register" class="text-blue-700 hover:text-blue-800">Daftar akaun</a></p>
       <p id="msg" class="min-h-6 pt-4 text-sm font-bold text-red-600"></p>
     </section>
   </main>
@@ -117,6 +117,20 @@
     const submitLabel = document.querySelector("#submitLabel");
     const msg = document.querySelector("#msg");
     let toastTimer;
+
+    function normalizeCleanUrl(route) {
+      const storedPath = sessionStorage.getItem("spradCleanPath");
+      sessionStorage.removeItem("spradCleanPath");
+      const cleanPath = route === "home"
+        ? window.location.pathname.replace(/\/index\.html$/, "/")
+        : window.location.pathname.replace(/\/[^/]*\.html$/, `/${route}`);
+      const targetPath = storedPath || cleanPath;
+      if (targetPath && `${window.location.pathname}${window.location.search}${window.location.hash}` !== targetPath) {
+        history.replaceState(null, "", targetPath);
+      }
+    }
+
+    normalizeCleanUrl("home");
 
     function clearRememberedCredentials() {
       localStorage.removeItem("spradRememberMe");
@@ -191,7 +205,7 @@
             localStorage.removeItem("role");
           }
           saveRememberedCredentials();
-          window.location.href = role === "pengguna" ? "form.html" : "view.html";
+          window.location.href = role === "pengguna" ? "form" : "view";
           return;
         }
         setLoading(false);

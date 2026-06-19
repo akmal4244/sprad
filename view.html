@@ -31,7 +31,7 @@
 
   <header class="bg-white border-b border-gray-100 shadow-sm z-50 h-16 sticky top-0">
     <div class="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-      <a href="index.html" class="flex items-center gap-3">
+      <a href="./" class="flex items-center gap-3">
         <img src="https://www.akm.gov.my/templates/yootheme/cache/91/JATA%20NEGARA%20AI-01-91eac591.webp" alt="Jata Negara" class="h-10 w-10 object-contain drop-shadow-sm">
         <div>
           <p class="text-base font-extrabold tracking-tight text-slate-800">SPRAD</p>
@@ -39,7 +39,7 @@
         </div>
       </a>
       <nav class="hidden items-center gap-6 text-xs font-bold uppercase tracking-wide text-slate-600 sm:flex">
-        <a href="form.html" class="hover:text-blue-600">Borang</a>
+        <a href="form" class="hover:text-blue-600">Borang</a>
         <button id="logout" type="button" class="rounded-full bg-slate-900 px-4 py-2 text-white transition hover:bg-black">Log keluar</button>
       </nav>
     </div>
@@ -53,12 +53,12 @@
       </div>
       <div class="mt-5 space-y-2">
         <p class="px-4 text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Menu Pengguna</p>
-        <a href="form.html" class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900">
+        <a href="form" class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900">
           <i class="fa-solid fa-clipboard-list w-4"></i>
           Borang penilaian
         </a>
         <p class="px-4 pt-4 text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Menu Pentadbir</p>
-        <a href="view.html" class="flex items-center gap-3 rounded-lg bg-blue-50 px-4 py-3 text-sm font-extrabold text-blue-600">
+        <a href="view" class="flex items-center gap-3 rounded-lg bg-blue-50 px-4 py-3 text-sm font-extrabold text-blue-600">
           <i class="fa-solid fa-table-list w-4"></i>
           Semua penilaian
         </a>
@@ -109,7 +109,26 @@
         <div class="border-b border-slate-100 bg-slate-50 px-5 py-4">
           <p class="text-xs font-extrabold uppercase tracking-widest text-slate-500">Senarai submission</p>
         </div>
-        <ul id="list" class="divide-y divide-slate-100"></ul>
+        <div class="overflow-x-auto">
+          <table class="min-w-full divide-y divide-slate-100">
+            <thead class="bg-white">
+              <tr>
+                <th class="px-5 py-3 text-left text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Nama</th>
+                <th class="px-5 py-3 text-left text-[11px] font-extrabold uppercase tracking-widest text-slate-400">E-mel</th>
+                <th class="px-5 py-3 text-left text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Mesej</th>
+                <th class="px-5 py-3 text-left text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Tarikh</th>
+              </tr>
+            </thead>
+            <tbody id="list" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+        <div class="flex flex-col gap-3 border-t border-slate-100 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p id="paginationSummary" class="text-xs font-bold text-slate-500">0 rekod</p>
+          <div class="flex gap-2">
+            <button id="prevPage" type="button" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-extrabold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50">Sebelum</button>
+            <button id="nextPage" type="button" class="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-extrabold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50">Seterusnya</button>
+          </div>
+        </div>
       </div>
     </section>
   </main>
@@ -122,7 +141,27 @@
     const totalCount = document.querySelector("#totalCount");
     const latestDate = document.querySelector("#latestDate");
     const sidebarRole = document.querySelector("#sidebarRole");
+    const paginationSummary = document.querySelector("#paginationSummary");
+    const prevPage = document.querySelector("#prevPage");
+    const nextPage = document.querySelector("#nextPage");
+    const PAGE_SIZE = 5;
+    let contactsState = [];
+    let currentPage = 1;
     let toastTimer;
+
+    function normalizeCleanUrl(route) {
+      const storedPath = sessionStorage.getItem("spradCleanPath");
+      sessionStorage.removeItem("spradCleanPath");
+      const cleanPath = route === "home"
+        ? window.location.pathname.replace(/\/index\.html$/, "/")
+        : window.location.pathname.replace(/\/[^/]*\.html$/, `/${route}`);
+      const targetPath = storedPath || cleanPath;
+      if (targetPath && `${window.location.pathname}${window.location.search}${window.location.hash}` !== targetPath) {
+        history.replaceState(null, "", targetPath);
+      }
+    }
+
+    normalizeCleanUrl("view");
 
     function showToast(title, text, type = "info") {
       const toast = document.querySelector("#toast");
@@ -145,29 +184,45 @@
     }
 
     function goToLogin() {
-      window.location.href = "login.html";
+      window.location.href = "login";
     }
 
     function goToForm() {
-      window.location.href = "form.html";
+      window.location.href = "form";
     }
 
     function showMessage(text) {
       list.innerHTML = "";
-      const item = document.createElement("li");
-      item.className = "p-6 text-center text-sm font-bold text-slate-500";
-      item.textContent = text;
-      list.append(item);
+      contactsState = [];
+      currentPage = 1;
+      totalCount.textContent = "0";
+      latestDate.textContent = "-";
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 4;
+      cell.className = "p-6 text-center text-sm font-bold text-slate-500";
+      cell.textContent = text;
+      row.append(cell);
+      list.append(row);
+      updatePagination();
     }
 
     function showLoadingState() {
       list.innerHTML = "";
       totalCount.textContent = "-";
       latestDate.textContent = "Memuatkan...";
-      const item = document.createElement("li");
-      item.className = "flex items-center justify-center gap-3 p-8 text-sm font-extrabold text-slate-500";
-      item.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-blue-600"></i><span>Memuatkan data...</span>';
-      list.append(item);
+      contactsState = [];
+      currentPage = 1;
+      paginationSummary.textContent = "Memuatkan...";
+      prevPage.disabled = true;
+      nextPage.disabled = true;
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 4;
+      cell.className = "p-8 text-center text-sm font-extrabold text-slate-500";
+      cell.innerHTML = '<span class="inline-flex items-center gap-3"><i class="fa-solid fa-spinner fa-spin text-blue-600"></i><span>Memuatkan data...</span></span>';
+      row.append(cell);
+      list.append(row);
     }
 
     function getCachedContacts() {
@@ -187,31 +242,49 @@
     }
 
     function renderContact(contact) {
-      const item = document.createElement("li");
-      const header = document.createElement("div");
-      const name = document.createElement("strong");
-      const email = document.createElement("span");
-      const message = document.createElement("p");
-      const createdAt = document.createElement("small");
+      const row = document.createElement("tr");
+      const name = document.createElement("td");
+      const email = document.createElement("td");
+      const message = document.createElement("td");
+      const createdAt = document.createElement("td");
 
-      item.className = "p-5 transition hover:bg-slate-50";
-      header.className = "flex flex-col gap-1 sm:flex-row sm:items-center";
-      name.className = "text-sm font-extrabold text-slate-900";
-      email.className = "text-xs font-bold text-slate-500";
-      message.className = "mt-3 rounded-xl border border-slate-200 bg-white p-4 text-sm font-medium leading-6 text-slate-700";
-      createdAt.className = "mt-3 block text-[11px] font-extrabold uppercase tracking-widest text-slate-400";
+      row.className = "align-top transition hover:bg-slate-50";
+      name.className = "whitespace-nowrap px-5 py-4 text-sm font-extrabold text-slate-900";
+      email.className = "whitespace-nowrap px-5 py-4 text-xs font-bold text-slate-500";
+      message.className = "min-w-[260px] px-5 py-4 text-sm font-medium leading-6 text-slate-700";
+      createdAt.className = "whitespace-nowrap px-5 py-4 text-[11px] font-extrabold uppercase tracking-widest text-slate-400";
 
       name.textContent = contact.name || "";
-      email.textContent = `(${contact.email || ""})`;
+      email.textContent = contact.email || "";
       message.textContent = contact.message || "";
       createdAt.textContent = contact.created_at || "";
 
-      header.append(name, email);
-      item.append(header, message, createdAt);
-      list.append(item);
+      row.append(name, email, message, createdAt);
+      list.append(row);
     }
 
-    function renderContacts(contacts) {
+    function updatePagination() {
+      const total = contactsState.length;
+      const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      currentPage = Math.min(Math.max(currentPage, 1), totalPages);
+
+      if (total === 0) {
+        paginationSummary.textContent = "0 rekod";
+        prevPage.disabled = true;
+        nextPage.disabled = true;
+        return;
+      }
+
+      const start = (currentPage - 1) * PAGE_SIZE + 1;
+      const end = Math.min(currentPage * PAGE_SIZE, total);
+      paginationSummary.textContent = `Memaparkan ${start}-${end} daripada ${total} rekod`;
+      prevPage.disabled = currentPage === 1;
+      nextPage.disabled = currentPage === totalPages;
+    }
+
+    function renderContacts(contacts, options = {}) {
+      contactsState = contacts;
+      if (!options.keepPage) currentPage = 1;
       totalCount.textContent = contacts.length;
       latestDate.textContent = contacts[0]?.created_at || "-";
       list.innerHTML = "";
@@ -219,8 +292,24 @@
         showMessage("Tiada penilaian lagi");
         return;
       }
-      contacts.forEach(renderContact);
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const end = start + PAGE_SIZE;
+      contactsState.slice(start, end).forEach(renderContact);
+      updatePagination();
     }
+
+    prevPage.addEventListener("click", () => {
+      if (currentPage <= 1) return;
+      currentPage -= 1;
+      renderContacts(contactsState, { keepPage: true });
+    });
+
+    nextPage.addEventListener("click", () => {
+      const totalPages = Math.max(1, Math.ceil(contactsState.length / PAGE_SIZE));
+      if (currentPage >= totalPages) return;
+      currentPage += 1;
+      renderContacts(contactsState, { keepPage: true });
+    });
 
     function setupSidebar() {
       const role = (localStorage.getItem("role") || "pentadbir").toLowerCase();

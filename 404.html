@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SPRAD | Menghala</title>
+  <meta name="robots" content="noindex">
+</head>
+<body>
+  <script>
+    const cleanPath = window.location.pathname.replace(/\/$/, "");
+    const routeMatch = cleanPath.match(/^(.*)\/(login|register|form|view)$/);
+
+    if (routeMatch) {
+      const [, basePath, route] = routeMatch;
+      sessionStorage.setItem("spradCleanPath", cleanPath + window.location.search + window.location.hash);
+      window.location.replace(`${basePath}/${route}.html${window.location.search}${window.location.hash}`);
+    } else {
+      window.location.replace(cleanPath.includes("/sprad") ? "/sprad/" : "/");
+    }
+  </script>
+</body>
+</html>
