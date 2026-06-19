@@ -4,19 +4,22 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>All submissions</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:,">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
-<body>
-  <main class="shell">
-    <section class="panel panel-wide">
-      <div class="topbar">
-        <div>
-          <p class="brand">Contact Desk</p>
-          <h1>All submissions</h1>
+<body class="min-h-screen bg-slate-50 text-slate-950 antialiased">
+  <main class="mx-auto min-h-screen w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <section class="grid gap-4 lg:grid-cols-[.7fr_1.3fr]">
+      <div class="grid content-start gap-4">
+        <div class="rounded-3xl border border-white/70 bg-blue-600 p-6 text-white shadow-xl shadow-blue-200">
+          <p class="text-sm font-bold text-blue-100">Contact Desk</p>
+          <h1 class="mt-8 text-4xl font-black tracking-tight">All submissions</h1>
         </div>
-        <button id="logout" class="button-secondary" type="button">Log out</button>
+        <button id="logout" type="button" class="rounded-3xl border border-slate-200 bg-white px-5 py-4 text-left text-base font-black text-blue-700 shadow-xl shadow-slate-200/60 transition hover:bg-blue-50 focus:outline-none focus:ring-4 focus:ring-blue-100">Log out</button>
       </div>
-      <ul id="list" class="list"></ul>
+      <div class="rounded-3xl border border-white/70 bg-white p-4 shadow-2xl shadow-slate-200/70 sm:p-6">
+        <ul id="list" class="grid gap-4"></ul>
+      </div>
     </section>
   </main>
   <script>
@@ -31,6 +34,7 @@
     function showMessage(text) {
       list.innerHTML = "";
       const item = document.createElement("li");
+      item.className = "rounded-3xl border border-slate-200 bg-slate-50 p-6 text-center font-bold text-slate-500";
       item.textContent = text;
       list.append(item);
     }
@@ -41,6 +45,12 @@
       const email = document.createElement("span");
       const message = document.createElement("p");
       const createdAt = document.createElement("small");
+
+      item.className = "rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm";
+      name.className = "text-lg font-black text-slate-950";
+      email.className = "ml-2 text-sm font-bold text-slate-500";
+      message.className = "mt-3 rounded-2xl bg-white p-4 text-slate-700";
+      createdAt.className = "mt-3 block text-xs font-bold uppercase tracking-[.16em] text-slate-400";
 
       name.textContent = contact.name || "";
       email.textContent = ` (${contact.email || ""})`;
@@ -63,23 +73,27 @@
         return;
       }
 
-      const params = new URLSearchParams({ action: "getContacts", token });
-      const res = await fetch(URL + "?" + params.toString());
-      const data = await res.json();
+      try {
+        const params = new URLSearchParams({ action: "getContacts", token });
+        const res = await fetch(URL + "?" + params.toString());
+        const data = await res.json();
 
-      if (!data.ok) {
-        localStorage.removeItem("token");
-        goToLogin();
-        return;
-      }
+        if (!data.ok) {
+          localStorage.removeItem("token");
+          goToLogin();
+          return;
+        }
 
-      const contacts = Array.isArray(data.contacts) ? data.contacts : [];
-      list.innerHTML = "";
-      if (contacts.length === 0) {
-        showMessage("No submissions yet");
-        return;
+        const contacts = Array.isArray(data.contacts) ? data.contacts : [];
+        list.innerHTML = "";
+        if (contacts.length === 0) {
+          showMessage("No submissions yet");
+          return;
+        }
+        contacts.forEach(renderContact);
+      } catch (error) {
+        showMessage("Couldn't load — try again later");
       }
-      contacts.forEach(renderContact);
     }
 
     loadSubmissions();
