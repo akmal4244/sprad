@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>All submissions</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 1.5rem;
+      font-family: Arial, sans-serif;
+      line-height: 1.5;
+      background: #f4f7fb;
+      color: #172033;
+    }
+    main {
+      width: min(100%, 44rem);
+      margin: 0 auto;
+      padding: 2rem;
+      background: #fff;
+      border-radius: .75rem;
+      box-shadow: 0 1rem 2.5rem rgba(23, 32, 51, .12);
+    }
+    h1 { margin-top: 0; }
+    ul { list-style: none; margin: 0; padding: 0; }
+    li { padding: 1rem 0; border-top: 1px solid #dbe2ef; }
+    li:first-child { border-top: 0; }
+    p { margin: .5rem 0; }
+    small { color: #607089; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>All submissions</h1>
+    <ul id="list"></ul>
+  </main>
+  <script>
+    const URL = "https://script.google.com/macros/s/AKfycbyvO77bqueo45EPyAKW6jUK8R5AEIVvFLjqGhlK1Sv5s8N6ay7anY9QhGLSZaIznApkiQ/exec";
+    const list = document.querySelector("#list");
+
+    function showMessage(text) {
+      list.innerHTML = "";
+      const item = document.createElement("li");
+      item.textContent = text;
+      list.append(item);
+    }
+
+    function renderContact(contact) {
+      const item = document.createElement("li");
+      const name = document.createElement("strong");
+      const email = document.createElement("span");
+      const message = document.createElement("p");
+      const createdAt = document.createElement("small");
+
+      name.textContent = contact.name || "";
+      email.textContent = ` (${contact.email || ""})`;
+      message.textContent = contact.message || "";
+      createdAt.textContent = contact.created_at || "";
+
+      item.append(name, email, message, createdAt);
+      list.append(item);
+    }
+
+    async function loadSubmissions() {
+      try {
+        const res = await fetch(URL);
+        const data = await res.json();
+        const contacts = Array.isArray(data.contacts) ? data.contacts : [];
+
+        list.innerHTML = "";
+        if (contacts.length === 0) {
+          showMessage("No submissions yet");
+          return;
+        }
+        contacts.forEach(renderContact);
+      } catch (error) {
+        showMessage("Couldn't load — try again later");
+      }
+    }
+
+    loadSubmissions();
+  </script>
+</body>
+</html>
