@@ -140,6 +140,7 @@
 
   <script type="module">
     import { getApiUrl, STORAGE_KEYS } from "./assets/js/config.js";
+    import { sortContactsByNewest } from "./assets/js/core/contact-utils.js";
 
     const URL = getApiUrl();
     const CONTACTS_CACHE_KEY = STORAGE_KEYS.contactsCache;
@@ -297,12 +298,12 @@
 
     function renderContacts(contacts, options = {}) {
       list.removeAttribute("aria-busy");
-      contactsState = contacts;
+      contactsState = sortContactsByNewest(contacts);
       if (!options.keepPage) currentPage = 1;
-      totalCount.textContent = contacts.length;
-      latestDate.textContent = contacts[0]?.created_at || "-";
+      totalCount.textContent = contactsState.length;
+      latestDate.textContent = contactsState[0]?.created_at || "-";
       list.innerHTML = "";
-      if (contacts.length === 0) {
+      if (contactsState.length === 0) {
         showMessage("Tiada penilaian lagi");
         return;
       }
