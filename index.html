@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Name Greeting</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 32rem; margin: 4rem auto; padding: 0 1rem; line-height: 1.5; }
+    form { display: flex; gap: .5rem; flex-wrap: wrap; }
+    input, button { font: inherit; padding: .6rem .75rem; }
+    button { cursor: pointer; }
+    #greeting { margin-top: 1rem; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <h1>Say hello</h1>
+  <form id="nameForm">
+    <label for="name">Name</label>
+    <input id="name" name="name" required>
+    <button type="submit">Submit</button>
+  </form>
+  <p id="greeting" aria-live="polite"></p>
+  <script>
+    const form = document.querySelector("#nameForm");
+    const nameInput = document.querySelector("#name");
+    const greeting = document.querySelector("#greeting");
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      greeting.textContent = `Hello, ${nameInput.value.trim()}!`;
+    });
+  </script>
+</body>
+</html>
