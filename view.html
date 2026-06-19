@@ -396,9 +396,9 @@
         method: "POST",
         mode: "no-cors",
         body: JSON.stringify({
-          ...payload,
           action,
-          token: localStorage.getItem(STORAGE_KEYS.token)
+          token: localStorage.getItem(STORAGE_KEYS.token),
+          payload
         })
       });
     }

@@ -502,12 +502,13 @@ function updateContact(body) {
   const user = validateToken(body.token);
   if (!user) return json({ ok: false, error: "invalid token" });
   if (user.role !== ROLE_ADMIN) return json({ ok: false, error: "forbidden" });
+  const payload = contactMutationPayload_(body);
 
   const contact = {
-    id: clean_(body.id),
-    name: clean_(body.name),
-    email: clean_(body.email),
-    message: clean_(body.message)
+    id: clean_(payload.id),
+    name: clean_(payload.name),
+    email: clean_(payload.email),
+    message: clean_(payload.message)
   };
 
   if (!contact.id) return json({ ok: false, error: "missing id" });
@@ -537,7 +538,7 @@ function updateContact(body) {
       action: "contacts.update",
       entityType: "contact",
       entityId: contact.id,
-      requestId: clean_(body.request_id || body.requestId || ""),
+      requestId: clean_(body.request_id || body.requestId || payload.request_id || payload.requestId || ""),
       beforeJson,
       afterJson: JSON.stringify(contact)
     });
@@ -559,7 +560,8 @@ function deleteContact(body) {
   if (!user) return json({ ok: false, error: "invalid token" });
   if (user.role !== ROLE_ADMIN) return json({ ok: false, error: "forbidden" });
 
-  const id = clean_(body.id);
+  const payload = contactMutationPayload_(body);
+  const id = clean_(payload.id);
   if (!id) return json({ ok: false, error: "missing id" });
 
   const lock = LockService.getScriptLock();
@@ -579,7 +581,7 @@ function deleteContact(body) {
       action: "contacts.delete",
       entityType: "contact",
       entityId: id,
-      requestId: clean_(body.request_id || body.requestId || ""),
+      requestId: clean_(body.request_id || body.requestId || payload.request_id || payload.requestId || ""),
       beforeJson,
       afterJson: ""
     });
@@ -940,6 +942,12 @@ function contactRowToObject_(row) {
   return Object.fromEntries(
     HEADERS.contacts.map((header, index) => [header, formatValue_(row[index])])
   );
+}
+
+function contactMutationPayload_(body) {
+  if (body && typeof body.payload === "object" && body.payload !== null) return body.payload;
+  if (body && typeof body.contact === "object" && body.contact !== null) return body.contact;
+  return body || {};
 }
 
 function getScriptCache_() {
