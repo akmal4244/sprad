@@ -19,6 +19,7 @@
           <p class="text-sm font-bold text-slate-500">Status mesej</p>
           <p class="mt-8 text-2xl font-black text-emerald-600">Dibuka</p>
         </div>
+        <button id="logout" type="button" class="hidden rounded-3xl border border-slate-200 bg-white px-5 py-4 text-left text-base font-black text-blue-700 shadow-xl shadow-slate-200/60 transition hover:bg-blue-50 focus:outline-none focus:ring-4 focus:ring-blue-100">Log keluar</button>
       </div>
       <div class="rounded-3xl border border-white/70 bg-white p-6 shadow-2xl shadow-slate-200/70 sm:p-8">
         <form id="contactForm" class="space-y-5">
@@ -44,6 +45,17 @@
     const URL = "https://script.google.com/macros/s/AKfycbyvO77bqueo45EPyAKW6jUK8R5AEIVvFLjqGhlK1Sv5s8N6ay7anY9QhGLSZaIznApkiQ/exec";
     const form = document.querySelector("#contactForm");
     const msg = document.querySelector("#msg");
+    const logout = document.querySelector("#logout");
+
+    if (localStorage.getItem("token")) {
+      logout.classList.remove("hidden");
+    }
+
+    logout.addEventListener("click", () => {
+      localStorage.removeItem("token");
+      localStorage.removeItem("role");
+      window.location.href = "login.html";
+    });
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();

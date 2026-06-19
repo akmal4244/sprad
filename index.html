@@ -24,6 +24,7 @@
           </label>
           <button type="submit" class="w-full rounded-2xl bg-blue-600 px-5 py-3.5 text-base font-black text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200">Log masuk</button>
         </form>
+        <p class="pt-4 text-center text-sm font-bold text-slate-500">Belum ada akaun? <a href="register.html" class="text-blue-700 hover:text-blue-800">Daftar akaun</a></p>
         <p id="msg" class="min-h-6 pt-4 text-sm font-bold text-red-600"></p>
       </div>
       <div class="grid gap-4 sm:grid-cols-2">
@@ -68,8 +69,14 @@
       const data = await res.json();
 
       if (data.ok) {
+        const role = (data.role || "").toLowerCase();
         localStorage.setItem("token", data.token);
-        window.location.href = "view.html";
+        if (role) {
+          localStorage.setItem("role", role);
+        } else {
+          localStorage.removeItem("role");
+        }
+        window.location.href = role === "pengguna" ? "form.html" : "view.html";
         return;
       }
       msg.textContent = "Log masuk gagal. Sila semak maklumat anda.";
