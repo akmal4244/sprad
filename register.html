@@ -91,9 +91,9 @@
             <option value="pentadbir">Pentadbir</option>
           </select>
         </label>
-        <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-slate-200 transition hover:-translate-y-0.5 hover:bg-black focus:outline-none focus:ring-4 focus:ring-slate-200">
-          <i class="fa-solid fa-user-plus"></i>
-          Daftar
+        <button id="submitBtn" type="submit" class="flex w-full items-center justify-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-slate-200 transition hover:-translate-y-0.5 hover:bg-black focus:outline-none focus:ring-4 focus:ring-slate-200 disabled:translate-y-0 disabled:cursor-wait disabled:opacity-80">
+          <i id="submitIcon" class="fa-solid fa-user-plus"></i>
+          <span id="submitLabel">Daftar</span>
         </button>
       </form>
       <p class="pt-5 text-center text-sm font-bold text-slate-500">Sudah ada akaun? <a href="login.html" class="text-blue-700 hover:text-blue-800">Log masuk</a></p>
@@ -104,8 +104,17 @@
   <script>
     const URL = "https://script.google.com/macros/s/AKfycbyvO77bqueo45EPyAKW6jUK8R5AEIVvFLjqGhlK1Sv5s8N6ay7anY9QhGLSZaIznApkiQ/exec";
     const form = document.querySelector("#registerForm");
+    const submitBtn = document.querySelector("#submitBtn");
+    const submitIcon = document.querySelector("#submitIcon");
+    const submitLabel = document.querySelector("#submitLabel");
     const msg = document.querySelector("#msg");
     let toastTimer;
+
+    function setLoading(isLoading, text = "Sedang daftar...") {
+      submitBtn.disabled = isLoading;
+      submitIcon.className = isLoading ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-user-plus";
+      submitLabel.textContent = isLoading ? text : "Daftar";
+    }
 
     function showToast(title, text, type = "info") {
       const toast = document.querySelector("#toast");
@@ -130,6 +139,7 @@
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       msg.textContent = "";
+      setLoading(true);
       const params = new URLSearchParams({
         action: "register",
         username: form.username.value,
@@ -146,15 +156,18 @@
           msg.textContent = "Akaun berjaya didaftarkan. Sila log masuk.";
           showToast("Berjaya", msg.textContent, "success");
           form.reset();
+          setLoading(false);
           return;
         }
         msg.className = "min-h-6 pt-4 text-sm font-bold text-red-600";
         msg.textContent = data.error || "Pendaftaran gagal. Sila cuba nama pengguna lain.";
         showToast("Tidak berjaya", msg.textContent, "error");
+        setLoading(false);
       } catch (error) {
         msg.className = "min-h-6 pt-4 text-sm font-bold text-red-600";
         msg.textContent = "Sambungan gagal. Sila cuba lagi.";
         showToast("Tidak berjaya", msg.textContent, "error");
+        setLoading(false);
       }
     });
   </script>

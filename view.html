@@ -153,6 +153,16 @@
       list.append(item);
     }
 
+    function showLoadingState() {
+      list.innerHTML = "";
+      totalCount.textContent = "-";
+      latestDate.textContent = "Memuatkan...";
+      const item = document.createElement("li");
+      item.className = "flex items-center justify-center gap-3 p-8 text-sm font-extrabold text-slate-500";
+      item.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-blue-600"></i><span>Memuatkan data...</span>';
+      list.append(item);
+    }
+
     function renderContact(contact) {
       const item = document.createElement("li");
       const header = document.createElement("div");
@@ -203,6 +213,7 @@
         return;
       }
 
+      showLoadingState();
       try {
         const params = new URLSearchParams({ action: "getContacts", token });
         const res = await fetch(URL + "?" + params.toString());

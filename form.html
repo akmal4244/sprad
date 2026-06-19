@@ -86,9 +86,9 @@
           <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Catatan risiko</span>
           <textarea id="message" name="message" required class="mt-2 min-h-40 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"></textarea>
         </label>
-        <button type="submit" class="flex w-full items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-blue-100 transition hover:-translate-y-0.5 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100 sm:w-auto sm:px-8">
-          <i class="fa-solid fa-paper-plane"></i>
-          Hantar penilaian
+        <button id="submitBtn" type="submit" class="flex w-full items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-blue-100 transition hover:-translate-y-0.5 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100 disabled:translate-y-0 disabled:cursor-wait disabled:opacity-80 sm:w-auto sm:px-8">
+          <i id="submitIcon" class="fa-solid fa-paper-plane"></i>
+          <span id="submitLabel">Hantar penilaian</span>
         </button>
       </form>
       <p id="msg" class="min-h-6 pt-4 text-sm font-bold text-emerald-600"></p>
@@ -100,7 +100,16 @@
     const form = document.querySelector("#contactForm");
     const msg = document.querySelector("#msg");
     const logout = document.querySelector("#logout");
+    const submitBtn = document.querySelector("#submitBtn");
+    const submitIcon = document.querySelector("#submitIcon");
+    const submitLabel = document.querySelector("#submitLabel");
     let toastTimer;
+
+    function setLoading(isLoading, text = "Sedang menghantar...") {
+      submitBtn.disabled = isLoading;
+      submitIcon.className = isLoading ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-paper-plane";
+      submitLabel.textContent = isLoading ? text : "Hantar penilaian";
+    }
 
     function showToast(title, text, type = "info") {
       const toast = document.querySelector("#toast");
@@ -146,6 +155,8 @@
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const data = Object.fromEntries(new FormData(form));
+      msg.textContent = "";
+      setLoading(true);
 
       try {
         await postData(data);
@@ -153,9 +164,11 @@
         msg.textContent = "Terima kasih! Penilaian anda telah dihantar.";
         showToast("Berjaya", msg.textContent, "success");
         form.reset();
+        setLoading(false);
       } catch (error) {
         msg.textContent = "Penilaian tidak dapat dihantar. Sila cuba lagi.";
         showToast("Ralat", msg.textContent, "error");
+        setLoading(false);
       }
     });
   </script>
