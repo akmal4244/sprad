@@ -4,61 +4,24 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Contact us</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 1.5rem;
-      font-family: Arial, sans-serif;
-      line-height: 1.5;
-      background: #f4f7fb;
-      color: #172033;
-    }
-    main {
-      width: min(100%, 34rem);
-      padding: 2rem;
-      background: #fff;
-      border-radius: .75rem;
-      box-shadow: 0 1rem 2.5rem rgba(23, 32, 51, .12);
-    }
-    h1 { margin-top: 0; }
-    label { display: block; margin-top: 1rem; font-weight: 700; }
-    input, textarea, button {
-      width: 100%;
-      margin-top: .4rem;
-      padding: .75rem;
-      font: inherit;
-      border: 1px solid #b8c2d6;
-      border-radius: .45rem;
-    }
-    textarea { min-height: 8rem; resize: vertical; }
-    button {
-      margin-top: 1.25rem;
-      border: 0;
-      background: #2257d6;
-      color: #fff;
-      cursor: pointer;
-      font-weight: 700;
-    }
-    #msg { min-height: 1.5rem; font-weight: 700; color: #196c3d; }
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main>
-    <h1>Contact us</h1>
-    <form id="contactForm">
-      <label for="name">Name</label>
-      <input id="name" name="name" required>
-      <label for="email">Email</label>
-      <input id="email" name="email" type="email" required>
-      <label for="message">Message</label>
-      <textarea id="message" name="message" required></textarea>
-      <button type="submit">Send</button>
-    </form>
-    <p id="msg"></p>
+  <main class="page">
+    <section class="panel">
+      <p class="brand">Contact Desk</p>
+      <h1>Contact us</h1>
+      <form id="contactForm">
+        <label for="name">Name</label>
+        <input id="name" name="name" autocomplete="name" required>
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="email" required>
+        <label for="message">Message</label>
+        <textarea id="message" name="message" required></textarea>
+        <button type="submit">Send</button>
+      </form>
+      <p id="msg" class="message message-success"></p>
+    </section>
   </main>
   <script>
     const URL = "https://script.google.com/macros/s/AKfycbyvO77bqueo45EPyAKW6jUK8R5AEIVvFLjqGhlK1Sv5s8N6ay7anY9QhGLSZaIznApkiQ/exec";

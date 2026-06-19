@@ -3,30 +3,45 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Name Greeting</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 32rem; margin: 4rem auto; padding: 0 1rem; line-height: 1.5; }
-    form { display: flex; gap: .5rem; flex-wrap: wrap; }
-    input, button { font: inherit; padding: .6rem .75rem; }
-    button { cursor: pointer; }
-    #greeting { margin-top: 1rem; font-weight: 700; }
-  </style>
+  <title>Sign in</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h1>Say hello</h1>
-  <form id="nameForm">
-    <label for="name">Name</label>
-    <input id="name" name="name" required>
-    <button type="submit">Submit</button>
-  </form>
-  <p id="greeting" aria-live="polite"></p>
+  <main class="page">
+    <section class="panel">
+      <p class="brand">Contact Desk</p>
+      <h1>Sign in</h1>
+      <form id="loginForm">
+        <label for="username">Username</label>
+        <input id="username" name="username" autocomplete="username" required>
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <button type="submit">Sign in</button>
+      </form>
+      <p id="msg" class="message message-error"></p>
+    </section>
+  </main>
   <script>
-    const form = document.querySelector("#nameForm");
-    const nameInput = document.querySelector("#name");
-    const greeting = document.querySelector("#greeting");
-    form.addEventListener("submit", (event) => {
+    const URL = "https://script.google.com/macros/s/AKfycbyvO77bqueo45EPyAKW6jUK8R5AEIVvFLjqGhlK1Sv5s8N6ay7anY9QhGLSZaIznApkiQ/exec";
+    const form = document.querySelector("#loginForm");
+    const msg = document.querySelector("#msg");
+
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      greeting.textContent = `Hello, ${nameInput.value.trim()}!`;
+      const params = new URLSearchParams({
+        action: "login",
+        username: form.username.value,
+        password: form.password.value
+      });
+      const res = await fetch(URL + "?" + params.toString());
+      const data = await res.json();
+
+      if (data.ok) {
+        localStorage.setItem("token", data.token);
+        window.location.href = "view.html";
+        return;
+      }
+      msg.textContent = data.error;
     });
   </script>
 </body>
