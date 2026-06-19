@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
   <title>SPRAD | Penilaian risiko</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -70,7 +71,7 @@
       <div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
         <p class="text-xs font-extrabold uppercase tracking-widest text-slate-400">Status</p>
         <p class="mt-3 text-xl font-extrabold text-emerald-600">Dibuka</p>
-        <p class="mt-2 text-xs font-semibold leading-5 text-slate-500">Borang sedia menerima penilaian risiko audit daripada pengguna.</p>
+        <p class="mt-2 text-xs font-semibold leading-5 text-slate-500">Borang V2 menggunakan matriks 1-4 x 1-4 dan menyimpan data secara kompatibel dengan backend semasa.</p>
       </div>
     </aside>
 
@@ -80,21 +81,103 @@
           <p class="text-xs font-extrabold uppercase tracking-widest text-blue-600">Borang SPRAD</p>
           <h1 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Penilaian risiko</h1>
         </div>
-        <p class="text-sm font-semibold text-slate-500">Sila isi semua medan wajib.</p>
+        <p class="text-sm font-semibold text-slate-500">Matriks rasmi: Kemungkinan 1-4 x Kesan 1-4.</p>
       </div>
       <form id="contactForm" class="grid gap-4">
+        <div class="grid gap-4 md:grid-cols-2">
+          <label class="block">
+            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Nama pelapor</span>
+            <input id="name" name="name" autocomplete="name" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+          </label>
+          <label class="block">
+            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">E-mel</span>
+            <input id="email" name="email" type="email" autocomplete="email" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+          </label>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <label class="block">
+            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Institusi</span>
+            <input id="institution_name" name="institution_name" required value="Institusi Default" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+          </label>
+          <label class="block">
+            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">PTJ / Jabatan / Unit</span>
+            <input id="org_unit" name="org_unit" required placeholder="Contoh: Fakulti / Jabatan / Unit" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+          </label>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <label class="block">
+            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Kitaran audit</span>
+            <input id="audit_cycle" name="audit_cycle" required placeholder="Contoh: Audit Dalam 2026" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+          </label>
+          <label class="block">
+            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Kategori risiko</span>
+            <select id="risk_category" name="risk_category" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-extrabold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+              <option value="Tiada Mandat">Tiada Mandat</option>
+              <option value="Kesilapan Isu Teknikal">Kesilapan Isu Teknikal</option>
+              <option value="Kecuaian">Kecuaian</option>
+              <option value="Pembaziran">Pembaziran</option>
+              <option value="Penyelewengan / Ketirisan">Penyelewengan / Ketirisan</option>
+            </select>
+          </label>
+        </div>
+
         <label class="block">
-          <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Nama</span>
-          <input id="name" name="name" autocomplete="name" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+          <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Tajuk isu audit</span>
+          <input id="finding_title" name="finding_title" required placeholder="Ringkasan penemuan atau isu audit" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
         </label>
+
+        <div class="grid gap-4 md:grid-cols-[1fr_1fr_240px]">
+          <label class="block">
+            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Kemungkinan</span>
+            <select id="likelihood" name="likelihood" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-extrabold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+              <option value="1">1 - Rendah</option>
+              <option value="2">2 - Sederhana</option>
+              <option value="3">3 - Tinggi</option>
+              <option value="4">4 - Sangat Tinggi</option>
+            </select>
+          </label>
+          <label class="block">
+            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Kesan</span>
+            <select id="impact" name="impact" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-extrabold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+              <option value="1">1 - Rendah</option>
+              <option value="2">2 - Sederhana</option>
+              <option value="3">3 - Tinggi</option>
+              <option value="4">4 - Sangat Tinggi</option>
+            </select>
+          </label>
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p class="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Pratonton risiko</p>
+            <div class="mt-2 flex items-end justify-between gap-3">
+              <p id="riskScore" class="text-4xl font-extrabold text-slate-900">1</p>
+              <span id="riskLevel" class="rounded-full px-3 py-1 text-xs font-extrabold text-white">Rendah</span>
+            </div>
+            <p id="riskFormula" class="mt-2 text-xs font-bold text-slate-500">K1 x I1</p>
+          </div>
+        </div>
+
         <label class="block">
-          <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">E-mel</span>
-          <input id="email" name="email" type="email" autocomplete="email" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+          <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Huraian isu audit</span>
+          <textarea id="message" name="message" required class="mt-2 min-h-32 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"></textarea>
         </label>
+
+        <div class="grid gap-4 md:grid-cols-2">
+          <label class="block">
+            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Punca utama</span>
+            <textarea id="root_cause" name="root_cause" required class="mt-2 min-h-28 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"></textarea>
+          </label>
+          <label class="block">
+            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Kesan / implikasi</span>
+            <textarea id="impact_description" name="impact_description" required class="mt-2 min-h-28 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"></textarea>
+          </label>
+        </div>
+
         <label class="block">
-          <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Catatan risiko</span>
-          <textarea id="message" name="message" required class="mt-2 min-h-40 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"></textarea>
+          <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Syor audit / tindakan dicadangkan</span>
+          <textarea id="recommendation" name="recommendation" required class="mt-2 min-h-28 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"></textarea>
         </label>
+
         <button id="submitBtn" type="submit" class="flex w-full items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-blue-100 transition hover:-translate-y-0.5 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100 disabled:translate-y-0 disabled:cursor-wait disabled:opacity-80 sm:w-auto sm:px-8">
           <i id="submitIcon" class="fa-solid fa-paper-plane"></i>
           <span id="submitLabel">Hantar penilaian</span>
@@ -104,8 +187,11 @@
     </section>
   </main>
 
-  <script>
-    const URL = "https://script.google.com/macros/s/AKfycbyvO77bqueo45EPyAKW6jUK8R5AEIVvFLjqGhlK1Sv5s8N6ay7anY9QhGLSZaIznApkiQ/exec";
+  <script type="module">
+    import { getApiUrl, STORAGE_KEYS } from "./assets/js/config.js";
+    import { calculateRisk } from "./assets/js/core/risk-engine.js";
+
+    const URL = getApiUrl();
     const form = document.querySelector("#contactForm");
     const msg = document.querySelector("#msg");
     const logout = document.querySelector("#logout");
@@ -113,6 +199,9 @@
     const submitIcon = document.querySelector("#submitIcon");
     const submitLabel = document.querySelector("#submitLabel");
     const sidebarRole = document.querySelector("#sidebarRole");
+    const riskScore = document.querySelector("#riskScore");
+    const riskLevel = document.querySelector("#riskLevel");
+    const riskFormula = document.querySelector("#riskFormula");
     let toastTimer;
 
     function normalizeCleanUrl(route) {
@@ -128,6 +217,10 @@
     }
 
     normalizeCleanUrl("form");
+
+    if (!localStorage.getItem(STORAGE_KEYS.token)) {
+      window.location.href = "login";
+    }
 
     function setLoading(isLoading, text = "Sedang menghantar...") {
       submitBtn.disabled = isLoading;
@@ -156,7 +249,7 @@
     }
 
     function setupSidebar() {
-      const role = (localStorage.getItem("role") || "pengguna").toLowerCase();
+      const role = (localStorage.getItem(STORAGE_KEYS.role) || "pengguna").toLowerCase();
       const isAdmin = role === "pentadbir";
       sidebarRole.textContent = isAdmin ? "Pentadbir" : "Pengguna";
       sidebarRole.className = isAdmin
@@ -197,21 +290,72 @@
     }
 
     function clearCredentialsIfNotRemembered() {
-      if (localStorage.getItem("spradRememberMe") === "true") return;
-      localStorage.removeItem("spradUsername");
       localStorage.removeItem("spradPassword");
+      if (localStorage.getItem(STORAGE_KEYS.rememberMe) === "true") return;
+      localStorage.removeItem(STORAGE_KEYS.username);
     }
 
     logout.addEventListener("click", () => {
       clearCredentialsIfNotRemembered();
-      localStorage.removeItem("token");
-      localStorage.removeItem("role");
+      localStorage.removeItem(STORAGE_KEYS.token);
+      localStorage.removeItem(STORAGE_KEYS.role);
       window.location.href = "login";
+    });
+
+    function updateRiskPreview() {
+      const risk = calculateRisk(form.likelihood.value, form.impact.value);
+      riskScore.textContent = risk.score;
+      riskLevel.textContent = risk.level;
+      riskLevel.style.backgroundColor = risk.color;
+      riskFormula.textContent = `K${risk.likelihood} x I${risk.impact}`;
+      return risk;
+    }
+
+    function buildLegacyMessage(values, risk) {
+      return [
+        `Tajuk isu: ${values.finding_title}`,
+        `Institusi: ${values.institution_name}`,
+        `PTJ / Unit: ${values.org_unit}`,
+        `Kitaran audit: ${values.audit_cycle}`,
+        `Kategori risiko: ${values.risk_category}`,
+        `Kemungkinan: ${risk.likelihood}`,
+        `Kesan: ${risk.impact}`,
+        `Skor risiko: ${risk.score}`,
+        `Tahap risiko: ${risk.level}`,
+        "",
+        "Huraian isu audit:",
+        values.message,
+        "",
+        "Punca utama:",
+        values.root_cause,
+        "",
+        "Kesan / implikasi:",
+        values.impact_description,
+        "",
+        "Syor audit / tindakan dicadangkan:",
+        values.recommendation
+      ].join("\n");
+    }
+
+    ["likelihood", "impact"].forEach((field) => {
+      form[field].addEventListener("change", updateRiskPreview);
     });
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const data = Object.fromEntries(new FormData(form));
+      const values = Object.fromEntries(new FormData(form));
+      const risk = updateRiskPreview();
+      const data = {
+        ...values,
+        action: "findings.create.legacy",
+        request_id: crypto.randomUUID(),
+        token: localStorage.getItem(STORAGE_KEYS.token),
+        likelihood: risk.likelihood,
+        impact: risk.impact,
+        risk_score: risk.score,
+        risk_level: risk.level,
+        message: buildLegacyMessage(values, risk)
+      };
       msg.textContent = "";
       setLoading(true);
 
@@ -221,6 +365,7 @@
         msg.textContent = "Terima kasih! Penilaian anda telah dihantar.";
         showToast("Berjaya", msg.textContent, "success");
         form.reset();
+        updateRiskPreview();
         setLoading(false);
       } catch (error) {
         msg.textContent = "Penilaian tidak dapat dihantar. Sila cuba lagi.";
@@ -230,6 +375,7 @@
     });
 
     setupSidebar();
+    updateRiskPreview();
   </script>
 </body>
 </html>

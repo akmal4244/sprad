@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
   <title>SPRAD | Daftar akaun</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -50,8 +51,8 @@
     <section class="order-2 grid gap-4 lg:order-1">
       <div class="brand-cover rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <p class="text-xs font-extrabold uppercase tracking-widest text-blue-600">Pendaftaran SPRAD</p>
-        <h1 class="mt-3 max-w-2xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">Akaun mengikut peranan</h1>
-        <p class="mt-4 max-w-xl text-sm font-medium leading-6 text-slate-500">Pilih peranan pengguna untuk menentukan laluan selepas log masuk: pentadbir melihat semua rekod, pengguna menghantar penilaian.</p>
+        <h1 class="mt-3 max-w-2xl text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">Pendaftaran pengguna</h1>
+        <p class="mt-4 max-w-xl text-sm font-medium leading-6 text-slate-500">Pendaftaran awam hanya mewujudkan akaun pengguna. Akaun pentadbir perlu dicipta oleh pentadbir sistem.</p>
       </div>
       <div class="grid gap-4 md:grid-cols-2">
         <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -59,7 +60,7 @@
             <i class="fa-solid fa-user-tie"></i>
           </div>
           <p class="mt-5 text-xs font-extrabold uppercase tracking-widest text-slate-400">Pentadbir</p>
-          <p class="mt-1 text-lg font-extrabold text-slate-900">Semak semua penilaian</p>
+          <p class="mt-1 text-lg font-extrabold text-slate-900">Dicipta secara terkawal</p>
         </div>
         <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
@@ -85,13 +86,12 @@
           <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Kata laluan</span>
           <input id="password" name="password" type="password" autocomplete="new-password" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
         </label>
-        <label class="block">
-          <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Peranan</span>
-          <select id="role" name="role" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-extrabold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
-            <option value="pengguna">Pengguna</option>
-            <option value="pentadbir">Pentadbir</option>
-          </select>
-        </label>
+        <input id="role" name="role" type="hidden" value="pengguna">
+        <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+          <p class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Peranan</p>
+          <p class="mt-1 text-sm font-extrabold text-slate-900">Pengguna</p>
+          <p class="mt-1 text-xs font-semibold leading-5 text-slate-500">Pendaftaran pentadbir awam ditutup untuk keselamatan SPRAD V2.</p>
+        </div>
         <button id="submitBtn" type="submit" class="flex w-full items-center justify-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-slate-200 transition hover:-translate-y-0.5 hover:bg-black focus:outline-none focus:ring-4 focus:ring-slate-200 disabled:translate-y-0 disabled:cursor-wait disabled:opacity-80">
           <i id="submitIcon" class="fa-solid fa-user-plus"></i>
           <span id="submitLabel">Daftar</span>
@@ -102,8 +102,10 @@
     </section>
   </main>
 
-  <script>
-    const URL = "https://script.google.com/macros/s/AKfycbyvO77bqueo45EPyAKW6jUK8R5AEIVvFLjqGhlK1Sv5s8N6ay7anY9QhGLSZaIznApkiQ/exec";
+  <script type="module">
+    import { getApiUrl } from "./assets/js/config.js";
+
+    const URL = getApiUrl();
     const form = document.querySelector("#registerForm");
     const submitBtn = document.querySelector("#submitBtn");
     const submitIcon = document.querySelector("#submitIcon");

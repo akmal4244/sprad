@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
   <title>SPRAD | Semua penilaian</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -134,9 +135,11 @@
     </section>
   </main>
 
-  <script>
-    const URL = "https://script.google.com/macros/s/AKfycbyvO77bqueo45EPyAKW6jUK8R5AEIVvFLjqGhlK1Sv5s8N6ay7anY9QhGLSZaIznApkiQ/exec";
-    const CONTACTS_CACHE_KEY = "spradContactsCache";
+  <script type="module">
+    import { getApiUrl, STORAGE_KEYS } from "./assets/js/config.js";
+
+    const URL = getApiUrl();
+    const CONTACTS_CACHE_KEY = STORAGE_KEYS.contactsCache;
     const list = document.querySelector("#list");
     const logout = document.querySelector("#logout");
     const totalCount = document.querySelector("#totalCount");
@@ -313,26 +316,26 @@
     });
 
     function setupSidebar() {
-      const role = (localStorage.getItem("role") || "pentadbir").toLowerCase();
+      const role = (localStorage.getItem(STORAGE_KEYS.role) || "pentadbir").toLowerCase();
       sidebarRole.textContent = role === "pengguna" ? "Pengguna" : "Pentadbir";
     }
 
     function clearCredentialsIfNotRemembered() {
-      if (localStorage.getItem("spradRememberMe") === "true") return;
-      localStorage.removeItem("spradUsername");
       localStorage.removeItem("spradPassword");
+      if (localStorage.getItem(STORAGE_KEYS.rememberMe) === "true") return;
+      localStorage.removeItem(STORAGE_KEYS.username);
     }
 
     logout.addEventListener("click", () => {
       clearCredentialsIfNotRemembered();
-      localStorage.removeItem("token");
-      localStorage.removeItem("role");
+      localStorage.removeItem(STORAGE_KEYS.token);
+      localStorage.removeItem(STORAGE_KEYS.role);
       goToLogin();
     });
 
     async function muatMesej() {
-      const token = localStorage.getItem("token");
-      const role = localStorage.getItem("role");
+      const token = localStorage.getItem(STORAGE_KEYS.token);
+      const role = localStorage.getItem(STORAGE_KEYS.role);
       if (!token) {
         goToLogin();
         return;
@@ -355,8 +358,8 @@
         const data = await res.json();
 
         if (!data.ok) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("role");
+          localStorage.removeItem(STORAGE_KEYS.token);
+          localStorage.removeItem(STORAGE_KEYS.role);
           showToast("Ralat", "Sesi tamat atau token tidak sah. Sila log masuk semula.", "error");
           goToLogin();
           return;
