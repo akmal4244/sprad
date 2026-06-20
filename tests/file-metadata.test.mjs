@@ -1,7 +1,7 @@
 /*
  * File Path: tests/file-metadata.test.mjs
- * File Version: SPRAD v2.8-production | metadata-header.1
- * Update Info: 2026-06-20 - Tambah metadata header untuk monitor path, versi dan info update.
+ * File Version: SPRAD v2.8-production | metadata-header.2
+ * Update Info: 2026-06-20 - Benarkan metadata version dan update info berbeza mengikut fail.
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -9,8 +9,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { extname } from "node:path";
 import test from "node:test";
 
-const VERSION = "SPRAD v2.8-production | metadata-header.1";
-const UPDATE_INFO = "2026-06-20 - Tambah metadata header untuk monitor path, versi dan info update.";
+const VERSION_PATTERN = /File Version:\s*SPRAD v2\.8-production\s*\|\s*\S+/;
+const UPDATE_PATTERN = /Update Info:\s*\S.+/;
 
 function trackedFiles() {
   const files = execFileSync("git", ["ls-files"], { encoding: "utf8" })
@@ -25,15 +25,19 @@ function trackedFiles() {
 function hasTextMetadataHeader(file, source) {
   const headerWindow = source.slice(0, 500);
   return headerWindow.includes(`File Path: ${file}`)
-    && headerWindow.includes(`File Version: ${VERSION}`)
-    && headerWindow.includes(`Update Info: ${UPDATE_INFO}`);
+    && VERSION_PATTERN.test(headerWindow)
+    && UPDATE_PATTERN.test(headerWindow);
 }
 
 function hasJsonMetadata(file, source) {
   const data = JSON.parse(source);
+  const info = data._spradFileInfo || {};
   return data._spradFileInfo?.filePath === file
-    && data._spradFileInfo?.fileVersion === VERSION
-    && data._spradFileInfo?.updateInfo === UPDATE_INFO;
+    && typeof info.fileVersion === "string"
+    && info.fileVersion.startsWith("SPRAD v2.8-production | ")
+    && info.fileVersion.split("|")[1]?.trim()
+    && typeof info.updateInfo === "string"
+    && info.updateInfo.trim().length > 0;
 }
 
 test("all tracked project files declare path, version and update info at the top", () => {

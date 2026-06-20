@@ -1,7 +1,7 @@
 /*
  * File Path: tests/ujianme-style-contract.test.mjs
- * File Version: SPRAD v2.8-production | metadata-header.1
- * Update Info: 2026-06-20 - Tambah metadata header untuk monitor path, versi dan info update.
+ * File Version: SPRAD v2.8-production | compact-font.1
+ * Update Info: 2026-06-20 - Tambah kontrak ujian skala font global yang lebih kecil.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -38,6 +38,11 @@ test("sidebar navigation uses UjianMe menu item classes", () => {
   assert.match(appShellSource, /menu-item/, "shared sidebar must render UjianMe menu-item class");
   assert.match(appShellSource, /menu-active/, "shared sidebar must render UjianMe active class");
   assert.doesNotMatch(appShellSource, /rounded-lg bg-blue-50 px-4 py-3 text-sm font-extrabold text-blue-600/, "old custom active nav class should not remain");
+});
+
+test("SPRAD uses a compact global typography scale", () => {
+  assert.match(brandCss, /html\s*\{[^}]*font-size:\s*14px;/s, "desktop base font should be compact");
+  assert.match(brandCss, /@media\s*\(max-width:\s*640px\)\s*\{[^}]*html\s*\{[^}]*font-size:\s*13\.5px;/s, "mobile base font should be compact");
 });
 
 function escapeRegex(value) {
