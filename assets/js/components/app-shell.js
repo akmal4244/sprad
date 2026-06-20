@@ -1,13 +1,14 @@
 /*
  * File Path: assets/js/components/app-shell.js
- * File Version: SPRAD v2.8-production | menu-focus.1
- * Update Info: 2026-06-20 - Susun sidebar kepada menu penting bersection gaya UjianMe.
+ * File Version: SPRAD v2.8-production | performance-nav.1
+ * Update Info: 2026-06-20 - Aktifkan soft navigation dan cache performance pada shell utama.
  */
 import { STORAGE_KEYS } from "../config.js";
 import { revokeSession } from "../core/api.js";
 import { confirmAction, confirmationCopyForAction } from "../core/action-confirmation.js";
 import { getRoleLabel, getRecordStatusLabel } from "../core/data-master-utils.js";
 import { getVisibleNavLinks, hasPermission, normalizeRole } from "../core/permissions.js";
+import { initSpaNavigation } from "../core/spa-navigation.js";
 
 let toastTimer;
 
@@ -109,6 +110,7 @@ export function setupLogoutButton() {
 }
 
 export function setupSidebar(currentRoute, session = getSessionContext()) {
+  initSpaNavigation();
   const navContainer = document.querySelector("aside .mt-4.space-y-2");
   if (navContainer) {
     const role = normalizeRole(session.v2Role || session.legacyRole);

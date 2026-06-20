@@ -1,7 +1,7 @@
 /*
  * File Path: assets/js/pages/form-page.js
- * File Version: SPRAD v2.8-production | menu-focus.1
- * Update Info: 2026-06-20 - Ringkaskan sidebar borang kepada menu penting gaya UjianMe.
+ * File Version: SPRAD v2.8-production | performance-nav.1
+ * Update Info: 2026-06-20 - Aktifkan soft navigation pada borang supaya menu tidak reload penuh.
  */
 import { getApiUrl, STORAGE_KEYS } from "../config.js";
 import { revokeSession } from "../core/api.js";
@@ -19,6 +19,7 @@ import {
   buildBulkFindingPayload,
   createEmptyFindingIssue
 } from "../core/bulk-finding-utils.js";
+import { initSpaNavigation } from "../core/spa-navigation.js";
 
 const URL = getApiUrl();
 const form = document.querySelector("#contactForm");
@@ -374,6 +375,7 @@ function setLoading(isLoading, text = "Sedang menghantar...") {
 }
 
 function setupSidebar() {
+  initSpaNavigation();
   const role = normalizeRole(localStorage.getItem(STORAGE_KEYS.v2Role) || localStorage.getItem(STORAGE_KEYS.role) || "viewer");
   const isAdmin = role === "super_admin" || role === "institution_admin";
   sidebarRole.textContent = getRoleLabel(role);

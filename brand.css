@@ -1,7 +1,7 @@
 /*
  * File Path: brand.css
- * File Version: SPRAD v2.8-production | ui-qa.1
- * Update Info: 2026-06-20 - Baiki header halaman supaya tajuk tidak overflow ke kad ringkasan.
+ * File Version: SPRAD v2.8-production | performance-nav.1
+ * Update Info: 2026-06-20 - Tambah indikator soft navigation dan cache UI untuk menu lebih pantas.
  */
 :root {
   color-scheme: light;
@@ -47,6 +47,41 @@ body {
   color: var(--sprad-ink) !important;
   overflow-x: hidden;
   text-rendering: optimizeLegibility;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 9999;
+  width: 100%;
+  height: 3px;
+  pointer-events: none;
+  background: linear-gradient(90deg, #2563eb, #10b981, #2563eb);
+  background-size: 180% 100%;
+  opacity: 0;
+  transform: scaleX(.22);
+  transform-origin: left center;
+}
+
+.sprad-route-loading body::after {
+  opacity: 1;
+  animation: spradRouteLoading .7s ease-in-out infinite;
+}
+
+@keyframes spradRouteLoading {
+  0% {
+    background-position: 0 0;
+    transform: scaleX(.22);
+  }
+  55% {
+    transform: scaleX(.72);
+  }
+  100% {
+    background-position: 100% 0;
+    transform: scaleX(1);
+  }
 }
 
 ::selection {
