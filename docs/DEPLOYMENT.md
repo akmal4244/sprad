@@ -32,10 +32,12 @@ Jika `apps-script/Code.gs` berubah:
 2. Ganti kandungan `Code.gs` dengan versi terbaru dari repo.
 3. Save.
 4. Run function `setup()` sekali jika diminta authorization.
-5. Deploy > Manage deployments > Edit deployment.
-6. Pilih versi baru.
-7. Pastikan Web App masih accessible kepada pengguna yang sama seperti deployment lama.
-8. Test:
+5. Optional: run `installDailyBackupTrigger()` sekali untuk backup harian Google Sheets.
+6. Deploy > Manage deployments > Edit deployment.
+7. Pilih versi baru.
+8. Pastikan Web App masih accessible kepada pengguna yang sama seperti deployment lama.
+9. Test `config.get` dan pastikan `schema_version` ialah `2.6-full-blueprint`.
+10. Test:
 
 ```text
 GET action=config.get
@@ -52,6 +54,8 @@ GET action=mutations.status&requestId=missing&token=...
 - `setup()` idempotent dan tidak memadam sheet lama.
 - Legacy sheets dikekalkan.
 - V2 sheets dan dummy data dijana automatik.
+- Password baharu menggunakan salt + pepper; password lama akan dinaik taraf selepas login berjaya.
+- Sesi baharu menyimpan token hash, bukan token mentah.
 
 ## Required Manual Step
 

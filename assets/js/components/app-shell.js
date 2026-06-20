@@ -1,5 +1,6 @@
 import { STORAGE_KEYS } from "../config.js";
 import { getRoleLabel, getRecordStatusLabel } from "../core/data-master-utils.js";
+import { hasPermission, normalizeRole } from "../core/permissions.js";
 
 let toastTimer;
 
@@ -49,18 +50,28 @@ export function getSessionContext() {
 }
 
 export function requireAdminSession() {
+  return requireSession({
+    permissions: ["institutions.manage", "masters.manage", "users.manage"],
+    fallback: "form"
+  });
+}
+
+export function requireSession(options = {}) {
   sessionStorage.removeItem("spradCleanPath");
   const session = getSessionContext();
   if (!session.token) {
     window.location.href = "login";
     return null;
   }
-  const hasAdminAccess = session.v2Role
-    ? ["super_admin", "institution_admin"].includes(session.v2Role)
-    : session.legacyRole === "pentadbir";
-  if (!hasAdminAccess) {
-    window.location.href = "form";
-    return null;
+
+  const permissions = options.permissions || [];
+  if (permissions.length) {
+    const role = normalizeRole(session.v2Role || session.legacyRole);
+    const allowed = permissions.some(permission => hasPermission(role, permission));
+    if (!allowed) {
+      window.location.href = options.fallback || "form";
+      return null;
+    }
   }
   return session;
 }
@@ -86,6 +97,11 @@ export function setupLogoutButton() {
 }
 
 export function setupSidebar(currentRoute, session = getSessionContext()) {
+  const navContainer = document.querySelector("aside .mt-4.space-y-2");
+  if (navContainer && !navContainer.querySelector('[data-nav-route="dashboard"]')) {
+    navContainer.innerHTML = standardSidebarNav();
+  }
+
   const sidebarRole = document.querySelector("#sidebarRole");
   if (sidebarRole) {
     const role = session.v2Role || session.legacyRole || "viewer";
@@ -99,6 +115,26 @@ export function setupSidebar(currentRoute, session = getSessionContext()) {
       ? "flex items-center gap-3 rounded-lg bg-blue-50 px-4 py-3 text-sm font-extrabold text-blue-600"
       : "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900";
   });
+}
+
+function standardSidebarNav() {
+  const links = [
+    ["dashboard", "fa-chart-line", "Dashboard"],
+    ["form", "fa-clipboard-list", "Penilaian risiko"],
+    ["audit-cycles", "fa-calendar-days", "Kitaran audit"],
+    ["audits", "fa-file-signature", "Audit"],
+    ["findings", "fa-triangle-exclamation", "Penemuan"],
+    ["corrective-actions", "fa-list-check", "Tindakan"],
+    ["reports", "fa-print", "Laporan"],
+    ["audit-logs", "fa-shield-halved", "Log audit"],
+    ["institutions", "fa-building-columns", "Institusi"],
+    ["org-units", "fa-sitemap", "PTJ / Unit"],
+    ["users", "fa-users-gear", "Pengguna"],
+    ["settings", "fa-sliders", "Tetapan"]
+  ];
+  return links
+    .map(([route, icon, label]) => `<a href="${route}" data-nav-route="${route}" class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"><i class="fa-solid ${icon} w-4"></i>${label}</a>`)
+    .join("");
 }
 
 export function statusBadge(status) {

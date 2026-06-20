@@ -218,7 +218,7 @@
           if (data.institution_id) localStorage.setItem(STORAGE_KEYS.institutionId, data.institution_id);
           else localStorage.removeItem(STORAGE_KEYS.institutionId);
           saveRememberedCredentials();
-          window.location.href = role === "pengguna" ? "form" : "view";
+          window.location.href = role === "pengguna" ? "form" : "dashboard";
           return;
         }
         setLoading(false);

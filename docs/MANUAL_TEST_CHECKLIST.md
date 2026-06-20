@@ -21,7 +21,7 @@ Gunakan checklist ini selepas frontend push dan Apps Script redeploy.
 
 ## 3. Apps Script V2 Foundation
 
-- [ ] `config.get` pulangkan schema `2.2-phase2-data-master`.
+- [ ] `config.get` pulangkan schema `2.6-full-blueprint`.
 - [ ] `riskMatrix.get` pulangkan scale dan risk level dari sheet.
 - [ ] `auth.me` pulangkan user tanpa password/token.
 - [ ] `institutions.list` berfungsi mengikut role.
@@ -41,6 +41,27 @@ Gunakan checklist ini selepas frontend push dan Apps Script redeploy.
 - [ ] Admin boleh create, update, archive dan restore kategori risiko.
 - [ ] Admin boleh update label, julat skor, warna dan SLA tahap risiko.
 - [ ] Jadual data induk paginate 5 rekod dan tidak scroll kiri kanan.
+
+## 3B. Modul Audit Fasa 3-4
+
+- [ ] `/audit-cycles`, `/audits`, `/findings`, `/corrective-actions`, `/audit-logs` buka tanpa `.html`.
+- [ ] Setiap jadual memaparkan 5 rekod setiap page dan tiada scroll kiri kanan.
+- [ ] Admin boleh create/update/archive/restore audit cycle dan audit.
+- [ ] Audit tidak boleh dibuat atau diubah jika cycle sudah finalized.
+- [ ] Penemuan create bermula sebagai `draft`.
+- [ ] PTJ penemuan boleh diganti semasa update tanpa duplicate link.
+- [ ] Auditor boleh submit draft/returned finding.
+- [ ] Reviewer/admin boleh approve atau return submitted finding.
+- [ ] Corrective action hanya boleh dibuat selepas finding approved.
+- [ ] Corrective action boleh submit for verification, verify dan return.
+- [ ] Semua tindakan verified menutup finding automatik.
+
+## 3C. Dashboard dan Laporan Fasa 5
+
+- [ ] `/dashboard` memaparkan jumlah penemuan, tahap keseluruhan, high/critical dan overdue.
+- [ ] `/reports` memaparkan 5 penemuan pertama, kategori dan tindakan.
+- [ ] Butang Cetak membuka print view.
+- [ ] Butang CSV memuat turun dataset laporan.
 
 ## 4. Mutation Receipt
 
@@ -75,6 +96,8 @@ Gunakan checklist ini selepas frontend push dan Apps Script redeploy.
 - [ ] `findings.restore` kosongkan `deleted_at` dan `deleted_by`.
 - [ ] `institutions.delete` archive institusi.
 - [ ] `audit_logs` tidak mengandungi password, token, token hash atau salt.
+- [ ] `/audit-logs` hanya boleh diakses admin/reviewer.
+- [ ] `backup.now` atau `runDailyBackup()` mencipta salinan spreadsheet di Drive.
 
 ## 8. Dashboard UI
 

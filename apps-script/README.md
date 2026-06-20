@@ -1,6 +1,6 @@
 # SPRAD Apps Script
 
-Fail `Code.gs` dalam folder ini ialah backend SPRAD V2.2 yang masih kompatibel dengan sistem lama.
+Fail `Code.gs` dalam folder ini ialah backend SPRAD V2.6 yang masih kompatibel dengan sistem lama.
 
 ## Cara guna
 
@@ -9,8 +9,9 @@ Fail `Code.gs` dalam folder ini ialah backend SPRAD V2.2 yang masih kompatibel d
 3. Salin kandungan `apps-script/Code.gs` ke Apps Script.
 4. Pastikan Apps Script menggunakan runtime V8. Jika guna manifest, salin juga `apps-script/appsscript.json`.
 5. Jalankan fungsi `setup()` sekali daripada Apps Script editor.
-6. Deploy semula Web App.
-7. Pastikan Web App masih menggunakan akses yang sama seperti deployment sebelum ini.
+6. Jika mahu backup automatik, jalankan fungsi `installDailyBackupTrigger()` sekali.
+7. Deploy semula Web App.
+8. Pastikan Web App masih menggunakan akses yang sama seperti deployment sebelum ini.
 
 ## Apa yang disokong
 
@@ -35,8 +36,12 @@ Fail `Code.gs` dalam folder ini ialah backend SPRAD V2.2 yang masih kompatibel d
 - Risk score dikira semula di backend untuk action `findings.create` dan `findings.create.legacy`.
 - Submit borang V2 turut mengisi `contacts` supaya dashboard legacy masih boleh membaca rekod.
 - Fasa 2 menyokong CRUD institusi, PTJ / unit, pengguna, kategori risiko dan update tahap risiko.
+- Fasa 3 menyokong kitaran audit, audit, penemuan, PTJ many-to-many, risk recalculation, soft delete dan restore.
+- Fasa 4 menyokong submit, return, approve, override, tindakan pembetulan, overdue dan verification.
+- Fasa 5 menyokong `dashboard.summary`, `reports.dataset`, laporan cetak dan export CSV di frontend.
+- Fasa 6 menyokong audit log read endpoint, mutation rate limit, password hash pepper+salt, token hash untuk sesi baharu dan helper backup.
 - Mutation `mode:"no-cors"` disahkan melalui polling `mutations.status`.
 
 ## Nota
 
-Selepas fail ini dikemaskini dalam Apps Script, deploy semula Web App supaya frontend GitHub Pages menerima endpoint V2.2.
+Selepas fail ini dikemaskini dalam Apps Script, deploy semula Web App supaya frontend GitHub Pages menerima endpoint V2.6.

@@ -1,6 +1,6 @@
 # SPRAD Data Schema
 
-Tarikh kemaskini: 2026-06-19
+Tarikh kemaskini: 2026-06-20
 
 Google Sheets ialah database rasmi. `apps-script/Code.gs` menjalankan setup idempotent melalui `ensureSheets_()` pada setiap request dan manual function `setup()`.
 
@@ -9,7 +9,7 @@ Google Sheets ialah database rasmi. `apps-script/Code.gs` menjalankan setup idem
 Current schema marker:
 
 ```text
-2.2-phase2-data-master
+2.6-full-blueprint
 ```
 
 Setting ini disimpan dalam sheet `settings` sebagai `schema_version`.
@@ -23,7 +23,7 @@ Legacy sheets dikekalkan supaya sistem live tidak putus:
 - `sessions`: `token, user_id, expires, created_at`
 - `settings`: `key, value`
 
-V2.2 menambah compatibility columns pada `users` dan `sessions` tanpa mengubah lima kolum asal.
+V2.6 menambah compatibility columns pada `users` dan `sessions` tanpa mengubah lima kolum asal.
 
 Tambahan `users`:
 
@@ -109,7 +109,7 @@ Sanitizer membuang password, password hash, salt, token dan token hash daripada 
 
 ## Dummy Data
 
-Setup V2.2 menambah data demo idempotent:
+Setup V2.6 menambah data demo idempotent:
 
 - 10 institusi demo
 - 10 PTJ demo
@@ -123,3 +123,12 @@ Setup V2.2 menambah data demo idempotent:
 - 10 mutation receipts
 
 Seeder tidak menggandakan row jika ID demo sudah wujud.
+
+## Security / Hardening V2.6
+
+- Password baharu disimpan sebagai hash SHA-256 dengan `password_salt` dan pepper `SPRAD_PASSWORD_PEPPER` dalam `PropertiesService`.
+- Password lama/plain lama masih boleh login sekali dan akan dinaik taraf automatik selepas login berjaya.
+- Sesi baharu menyimpan `token_hash`; token mentah dikosongkan untuk rekod baharu. Rekod lama masih disokong untuk migration.
+- Mutation receipt mengekalkan idempotency melalui `request_id`.
+- `audit_logs` membuang password, salt, token dan token hash daripada JSON audit.
+- Backup boleh dijalankan manual melalui `backup.now` atau fungsi Apps Script `runDailyBackup()`.
