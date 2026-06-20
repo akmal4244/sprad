@@ -48,8 +48,8 @@ test("sidebar navigation uses UjianMe menu item classes", () => {
 });
 
 test("SPRAD uses a compact global typography scale", () => {
-  assert.match(brandCss, /html\s*\{[^}]*font-size:\s*14px;/s, "desktop base font should be compact");
-  assert.match(brandCss, /@media\s*\(max-width:\s*640px\)\s*\{[^}]*html\s*\{[^}]*font-size:\s*13\.5px;/s, "mobile base font should be compact");
+  assert.match(brandCss, /html\s*\{[^}]*font-size:\s*13px;/s, "desktop base font should be smaller and compact");
+  assert.match(brandCss, /@media\s*\(max-width:\s*640px\)\s*\{[^}]*html\s*\{[^}]*font-size:\s*12\.5px;/s, "mobile base font should be smaller and compact");
 });
 
 test("sidebar is separated from content cards", () => {

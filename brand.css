@@ -1,7 +1,7 @@
 /*
  * File Path: brand.css
- * File Version: SPRAD v2.8-production | login-redesign.1
- * Update Info: 2026-06-20 - Reka semula skrin log masuk kepada layout analisis bento yang lebih kemas.
+ * File Version: SPRAD v2.8-production | compact-font.1
+ * Update Info: 2026-06-20 - Kecilkan lagi skala font global sistem SPRAD.
  */
 :root {
   color-scheme: light;
@@ -30,14 +30,14 @@
 }
 
 html {
-  font-size: 14px;
+  font-size: 13px;
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
 }
 
 @media (max-width: 640px) {
   html {
-    font-size: 13.5px;
+    font-size: 12.5px;
   }
 }
 
