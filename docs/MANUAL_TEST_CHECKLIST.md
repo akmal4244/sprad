@@ -21,7 +21,8 @@ Gunakan checklist ini selepas frontend push dan Apps Script redeploy.
 
 ## 3. Apps Script V2 Foundation
 
-- [ ] `config.get` pulangkan schema `2.6-full-blueprint`.
+- [ ] `config.get` pulangkan schema `2.8-production`.
+- [ ] `system.health` boleh dibuka oleh pentadbir dan tidak memaparkan secret.
 - [ ] `riskMatrix.get` pulangkan scale dan risk level dari sheet.
 - [ ] `auth.me` pulangkan user tanpa password/token.
 - [ ] `institutions.list` berfungsi mengikut role.

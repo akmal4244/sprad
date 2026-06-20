@@ -1,4 +1,5 @@
 import { STORAGE_KEYS } from "../config.js";
+import { revokeSession } from "../core/api.js";
 import { getRoleLabel, getRecordStatusLabel } from "../core/data-master-utils.js";
 import { getVisibleNavLinks, hasPermission, normalizeRole } from "../core/permissions.js";
 
@@ -83,13 +84,16 @@ export function clearCredentialsIfNotRemembered() {
 }
 
 export function logoutToLogin() {
+  const token = getSessionContext().token;
   clearCredentialsIfNotRemembered();
   localStorage.removeItem(STORAGE_KEYS.token);
   localStorage.removeItem(STORAGE_KEYS.role);
   localStorage.removeItem(STORAGE_KEYS.v2Role);
   localStorage.removeItem(STORAGE_KEYS.userId);
   localStorage.removeItem(STORAGE_KEYS.institutionId);
-  window.location.href = "login";
+  revokeSession(token).finally(() => {
+    window.location.href = "login";
+  });
 }
 
 export function setupLogoutButton() {

@@ -36,11 +36,12 @@ Jika `apps-script/Code.gs` berubah:
 6. Deploy > Manage deployments > Edit deployment.
 7. Pilih versi baru.
 8. Pastikan Web App masih accessible kepada pengguna yang sama seperti deployment lama.
-9. Test `config.get` dan pastikan `schema_version` ialah `2.6-full-blueprint`.
+9. Test `config.get` dan pastikan `schema_version` ialah `2.8-production`.
 10. Test:
 
 ```text
 GET action=config.get
+GET action=system.health&token=...
 GET action=riskMatrix.get
 GET action=login
 GET action=dashboard.summary&token=...
@@ -56,6 +57,8 @@ GET action=mutations.status&requestId=missing&token=...
 - V2 sheets dan dummy data dijana automatik.
 - Password baharu menggunakan salt + pepper; password lama akan dinaik taraf selepas login berjaya.
 - Sesi baharu menyimpan token hash, bukan token mentah.
+- Logout frontend memanggil `auth.logout` untuk revoke session backend sebelum kembali ke login.
+- `system.health` ialah endpoint admin-only untuk semak schema, sheet readiness dan konfigurasi production tanpa mendedahkan secret.
 
 ## Required Manual Step
 

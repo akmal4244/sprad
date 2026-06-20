@@ -61,7 +61,8 @@ export const NAV_LINKS = Object.freeze([
   { route: "institutions", icon: "fa-building-columns", label: "Institusi", permissions: ["institutions.manage"] },
   { route: "org-units", icon: "fa-sitemap", label: "PTJ / Unit", permissions: ["masters.manage"] },
   { route: "users", icon: "fa-users-gear", label: "Pengguna", permissions: ["users.manage"] },
-  { route: "settings", icon: "fa-sliders", label: "Tetapan", permissions: ["masters.manage"] }
+  { route: "settings", icon: "fa-sliders", label: "Tetapan", permissions: ["masters.manage"] },
+  { route: "system-health", icon: "fa-heart-pulse", label: "Status sistem", permissions: ["users.manage"] }
 ]);
 
 export function normalizeRole(role) {

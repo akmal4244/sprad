@@ -71,5 +71,6 @@ test("filters sidebar navigation by role permissions", () => {
   assert.equal(adminRoutes.includes("ai-intake"), true);
   assert.equal(adminRoutes.includes("users"), true);
   assert.equal(adminRoutes.includes("settings"), true);
+  assert.equal(adminRoutes.includes("system-health"), true);
   assert.equal(adminRoutes.includes("institutions"), false);
 });

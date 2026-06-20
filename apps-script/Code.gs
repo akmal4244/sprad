@@ -33,7 +33,7 @@ const ROLE_REVIEWER = "reviewer";
 const ROLE_VIEWER = "viewer";
 const SESSION_DAYS = 7;
 const DEFAULT_INSTITUTION_ID = "inst_default";
-const SETUP_CACHE_KEY = "sprad_schema_ready_v2_7";
+const SETUP_CACHE_KEY = "sprad_schema_ready_v2_8";
 const SETUP_CACHE_SECONDS = 300;
 const LOGIN_ATTEMPT_LIMIT = 8;
 const LOGIN_ATTEMPT_WINDOW_SECONDS = 600;
@@ -202,7 +202,7 @@ function getConfig() {
     ok: true,
     data: {
       app_name: APP_NAME,
-      schema_version: "2.7-ai-intake",
+      schema_version: "2.8-production",
       logo_url: LOGO_URL,
       favicon_url: FAVICON_URL,
       legacy_roles: [ROLE_ADMIN, ROLE_USER],
@@ -768,6 +768,7 @@ function routeV2Get_(p, user) {
   const action = clean_(p.action);
   if (action === "auth.me") return apiOk_({ user: publicUser_(user) });
   if (action === "auth.logout") return logoutSession_(p.token, user);
+  if (action === "system.health") return getSystemHealth_(user);
   if (action === "institutions.list") return listInstitutions_(user, p);
   if (action === "institutions.get") return getInstitution_(user, p.id || p.institution_id);
   if (action === "orgUnits.list") return listTenantRecords_(SHEET_ORG_UNITS, user, p);
@@ -2038,6 +2039,87 @@ function logoutSession_(token, user) {
   return apiOk_({ logged_out: true });
 }
 
+function getSystemHealth_(user) {
+  requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN]);
+
+  const props = PropertiesService.getScriptProperties();
+  const sheetStatus = Object.keys(HEADERS).map(sheetName => sheetHealth_(sheetName));
+  const geminiConfigured = Boolean(getGeminiApiKey_());
+  const aiFolderConfigured = Boolean(props.getProperty("SPRAD_AI_UPLOAD_FOLDER_ID"));
+  const pepperConfigured = Boolean(props.getProperty("SPRAD_PASSWORD_PEPPER"));
+  const checks = [
+    {
+      key: "schema_version",
+      label: "Schema SPRAD",
+      ok: true,
+      value: "2.8-production",
+      description: "Versi schema backend aktif."
+    },
+    {
+      key: "password_pepper",
+      label: "Pepper kata laluan",
+      ok: pepperConfigured,
+      configured: pepperConfigured,
+      description: "Rahsia pepper kata laluan wujud dalam Script Properties."
+    },
+    {
+      key: "gemini_api_key",
+      label: "Gemini API",
+      ok: geminiConfigured,
+      configured: geminiConfigured,
+      description: "Diperlukan untuk AI Intake dokumen audit."
+    },
+    {
+      key: "ai_upload_folder",
+      label: "Folder upload AI",
+      ok: aiFolderConfigured,
+      configured: aiFolderConfigured,
+      description: "Folder Drive untuk fail AI Intake."
+    },
+    {
+      key: "public_admin_registration",
+      label: "Pendaftaran pentadbir awam",
+      ok: !ALLOW_PUBLIC_ADMIN_REGISTER,
+      configured: !ALLOW_PUBLIC_ADMIN_REGISTER,
+      description: "Pendaftaran awam tidak boleh cipta akaun pentadbir."
+    }
+  ];
+  const ready = checks.every(check => check.ok) && sheetStatus.every(sheet => sheet.ok);
+
+  return apiOk_({
+    health: {
+      status: ready ? "ready" : "attention",
+      app_name: APP_NAME,
+      schema_version: "2.8-production",
+      completed_phases: "0,1,2,3,4,5,6,7",
+      generated_at: nowIso_(),
+      checks,
+      sheets: sheetStatus
+    }
+  });
+}
+
+function sheetHealth_(sheetName) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (!sheet) {
+    return {
+      name: sheetName,
+      ok: false,
+      rows: 0,
+      missing_headers: HEADERS[sheetName] || []
+    };
+  }
+  const headers = getSheetHeaders_(sheet);
+  const requiredHeaders = HEADERS[sheetName] || [];
+  const missingHeaders = requiredHeaders.filter(header => headers.indexOf(header) === -1);
+  return {
+    name: sheetName,
+    ok: missingHeaders.length === 0,
+    rows: Math.max(sheet.getLastRow() - 1, 0),
+    missing_headers: missingHeaders
+  };
+}
+
 function getHeadersForSheet_(sheetName) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
   return getSheetHeaders_(sheet);
@@ -2947,7 +3029,7 @@ function ensureSheet_(name, headers) {
 function ensureSettings_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SETTINGS);
   const settings = {
-    schema_version: "2.7-ai-intake",
+    schema_version: "2.8-production",
     app_name: APP_NAME,
     logo_url: LOGO_URL,
     favicon_url: FAVICON_URL,
@@ -2976,7 +3058,7 @@ function ensureSettings_() {
   };
 
   Object.entries(settings).forEach(upsert);
-  setSettingValue_(sheet, headers, "schema_version", "2.7-ai-intake", "system", "global", "system");
+  setSettingValue_(sheet, headers, "schema_version", "2.8-production", "system", "global", "system");
   setSettingValue_(sheet, headers, "completed_phases", "0,1,2,3,4,5,6,7", "system", "global", "system");
 }
 

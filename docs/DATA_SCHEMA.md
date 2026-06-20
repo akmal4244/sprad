@@ -9,7 +9,7 @@ Google Sheets ialah database rasmi. `apps-script/Code.gs` menjalankan setup idem
 Current schema marker:
 
 ```text
-2.6-full-blueprint
+2.8-production
 ```
 
 Setting ini disimpan dalam sheet `settings` sebagai `schema_version`.
@@ -56,6 +56,8 @@ Sheets V2 yang disediakan automatik:
 - `corrective_actions`
 - `attachments`
 - `audit_logs`
+- `ai_jobs`
+- `ai_drafts`
 - `mutation_receipts`
 
 ## Risk Rules

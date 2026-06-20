@@ -1,4 +1,5 @@
 import { getApiUrl, STORAGE_KEYS } from "../config.js";
+import { revokeSession } from "../core/api.js";
 import { getRoleLabel } from "../core/data-master-utils.js";
 import { getVisibleNavLinks, normalizeRole } from "../core/permissions.js";
 import { calculateRisk } from "../core/risk-engine.js";
@@ -373,13 +374,16 @@ function setupSidebar() {
 }
 
 function logoutToLogin() {
+  const token = localStorage.getItem(STORAGE_KEYS.token) || "";
   clearCredentialsIfNotRemembered();
   localStorage.removeItem(STORAGE_KEYS.token);
   localStorage.removeItem(STORAGE_KEYS.role);
   localStorage.removeItem(STORAGE_KEYS.v2Role);
   localStorage.removeItem(STORAGE_KEYS.userId);
   localStorage.removeItem(STORAGE_KEYS.institutionId);
-  window.location.href = "login";
+  revokeSession(token).finally(() => {
+    window.location.href = "login";
+  });
 }
 
 function clearCredentialsIfNotRemembered() {

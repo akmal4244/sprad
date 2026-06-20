@@ -24,6 +24,10 @@ const formHtml = read("form.html");
 const formPageSource = read("assets/js/pages/form-page.js");
 const aiIntakeHtml = read("ai-intake.html");
 const aiIntakePageSource = read("assets/js/pages/ai-intake-page.js");
+const appShellSource = read("assets/js/components/app-shell.js");
+const apiSource = read("assets/js/core/api.js");
+const systemHealthHtml = read("system-health.html");
+const systemHealthPageSource = read("assets/js/pages/system-health-page.js");
 
 const mutationActions = [
   "institutions.create",
@@ -87,6 +91,7 @@ const getActions = [
   "riskMatrix.get",
   "aiJobs.list",
   "aiDrafts.list",
+  "system.health",
   "mutations.status"
 ];
 
@@ -152,6 +157,26 @@ test("backend restricts operational list endpoints away from viewer-only session
     /function listCorrectiveActions_\(user, p\) \{\s*requireRole_\(user, \[ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_AUDITOR, ROLE_REVIEWER\]\);/,
     "correctiveActions.list must require an operational audit role"
   );
+});
+
+test("production health endpoint is admin-only and does not expose secrets", () => {
+  assert.match(frontendCrudSources + systemHealthPageSource + codeGs, quotedAction("system.health"), "system health route must be wired");
+  assert.match(codeGs, /if \(action === "system\.health"\) return getSystemHealth_\(user\);/, "system health route must be protected");
+  assert.match(
+    codeGs,
+    /function getSystemHealth_\(user\) \{\s*requireRole_\(user, \[ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN\]\);/,
+    "system health must require an admin role"
+  );
+  assert.match(codeGs, /const geminiConfigured = Boolean\(getGeminiApiKey_\(\)\);/, "health should check Gemini configured state");
+  assert.match(codeGs, /configured: geminiConfigured/, "health should expose only Gemini configured state");
+  assert.doesNotMatch(codeGs, /GEMINI_API_KEY.*value|SPRAD_PASSWORD_PEPPER.*value/, "health must not expose secret values");
+  assert.match(systemHealthHtml, /system-health-page\.js/, "system health page must load its module");
+});
+
+test("frontend logout revokes backend sessions before clearing local state", () => {
+  assert.match(apiSource, /action: "auth\.logout"/, "API helper must target auth.logout");
+  assert.match(appShellSource, /revokeSession\(token\)/, "shared shell logout must revoke backend session");
+  assert.match(formPageSource, /revokeSession\(token\)/, "assessment form logout must revoke backend session");
 });
 
 test("legacy public assessment form supports multiple audit issues in one submission", () => {

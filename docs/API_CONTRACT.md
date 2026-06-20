@@ -26,7 +26,7 @@ Endpoint legacy seperti `login`, `register`, dan `getContacts` masih mengekalkan
 
 | Method | Action | Token | Nota |
 | --- | --- | --- | --- |
-| GET | `login` | Tidak | Legacy login; response turut pulangkan `user_id`, `institution_id`, dan `v2_role` selepas Code.gs V2.6 deploy. Password lama akan dinaik taraf ke hash pepper+salt selepas login berjaya. |
+| GET | `login` | Tidak | Legacy login; response turut pulangkan `user_id`, `institution_id`, dan `v2_role` selepas Code.gs V2.8 deploy. Password lama akan dinaik taraf ke hash pepper+salt selepas login berjaya. |
 | GET | `register` | Tidak | Public registration hanya role pengguna. Pentadbir awam ditutup. |
 | GET | `auth.me` | Ya | Pulangkan profil user tersanitasi. |
 | GET | `auth.logout` | Ya | Revoke session jika kolum V2 tersedia. |
@@ -48,6 +48,8 @@ Endpoint legacy seperti `login`, `register`, dan `getContacts` masih mengekalkan
 | `auditLogs.list` | Log audit tersanitasi untuk admin/reviewer. |
 | `dashboard.summary` | Ringkasan tahap risiko, kategori dan tindakan. |
 | `reports.dataset` | Dataset laporan print/export. |
+| `aiJobs.list` / `aiDrafts.list` | Status AI Intake dan draft penemuan hasil analisis dokumen. |
+| `system.health` | Semakan production admin-only untuk schema, sheet readiness dan konfigurasi tanpa mendedahkan secret. |
 | `mutations.status` | Receipt untuk POST `mode:"no-cors"`. |
 
 ## POST Mutations
@@ -88,6 +90,7 @@ Supported mutation actions:
 - `correctiveActions.create`, `correctiveActions.update`, `correctiveActions.delete`, `correctiveActions.restore`
 - `correctiveActions.submitForVerification`, `correctiveActions.verify`, `correctiveActions.return`
 - `users.create`, `users.update`, `users.deactivate`, `users.restore`
+- `aiIntake.create`, `aiDrafts.promote`
 - `settings.update`
 - `backup.now`
 
