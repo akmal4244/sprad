@@ -67,6 +67,8 @@ test("filters sidebar navigation by role permissions", () => {
   assert.deepEqual(viewerRoutes, ["dashboard", "reports"]);
 
   const adminRoutes = getVisibleNavLinks("institution_admin").map(link => link.route);
+  assert.equal(adminRoutes.includes("form"), true);
+  assert.equal(adminRoutes.includes("ai-intake"), true);
   assert.equal(adminRoutes.includes("users"), true);
   assert.equal(adminRoutes.includes("settings"), true);
   assert.equal(adminRoutes.includes("institutions"), false);

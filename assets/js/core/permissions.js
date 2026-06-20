@@ -50,8 +50,8 @@ export const ROLE_PERMISSIONS = Object.freeze({
 
 export const NAV_LINKS = Object.freeze([
   { route: "dashboard", icon: "fa-chart-line", label: "Dashboard", permissions: ["reports.view"] },
-  { route: "form", icon: "fa-clipboard-list", label: "Penilaian risiko", permissions: ["findings.create"] },
-  { route: "ai-intake", icon: "fa-wand-magic-sparkles", label: "AI Intake", permissions: ["findings.create"] },
+  { route: "form", icon: "fa-clipboard-list", label: "Penilaian risiko", permissions: ["findings.create", "findings.manage"] },
+  { route: "ai-intake", icon: "fa-wand-magic-sparkles", label: "AI Intake", permissions: ["findings.create", "findings.manage"] },
   { route: "audit-cycles", icon: "fa-calendar-days", label: "Kitaran audit", permissions: ["audit.manage"] },
   { route: "audits", icon: "fa-file-signature", label: "Audit", permissions: ["audit.manage"] },
   { route: "findings", icon: "fa-triangle-exclamation", label: "Penemuan", permissions: ["findings.create", "findings.review", "findings.manage"] },
