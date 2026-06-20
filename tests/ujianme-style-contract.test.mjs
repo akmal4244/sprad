@@ -1,7 +1,7 @@
 /*
  * File Path: tests/ujianme-style-contract.test.mjs
- * File Version: SPRAD v2.8-production | sidebar-panel.1
- * Update Info: 2026-06-20 - Tambah kontrak supaya side menu asing daripada card kandungan.
+ * File Version: SPRAD v2.8-production | ujianme-style.1
+ * Update Info: 2026-06-20 - Tambah kontrak gaya UjianMe tanpa bento login dan sidebar scroll berasingan.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -13,13 +13,21 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
 const read = filePath => fs.readFileSync(path.join(rootDir, filePath), "utf8");
 
 const brandCss = read("brand.css");
+const loginSource = read("login.html") + "\n" + read("index.html");
 const appShellSource = read("assets/js/components/app-shell.js");
 const sidebarSources = [
   "assets/js/pages/ai-intake-page.js",
   "assets/js/pages/audit-workspace-page.js",
   "assets/js/pages/dashboard-page.js",
   "assets/js/pages/reports-page.js",
-  "assets/js/pages/system-health-page.js"
+  "assets/js/pages/system-health-page.js",
+  "audit-cycles.html",
+  "form.html",
+  "institutions.html",
+  "org-units.html",
+  "settings.html",
+  "users.html",
+  "view.html"
 ].map(read).join("\n");
 
 test("SPRAD global style follows UjianMe shell tokens", () => {
@@ -59,6 +67,21 @@ test("sidebar is separated from content cards", () => {
   assert.match(sidebarSources, /sprad-content/, "page content sections must be separated from sidebar");
   assert.doesNotMatch(sidebarSources, /<aside class="[^"]*rounded-2xl[^"]*shadow-sm/, "sidebar must not be styled like a card");
   assert.doesNotMatch(brandCss, /aside\s*\{[^}]*box-shadow/s, "generic aside must not receive card shadow");
+});
+
+test("desktop sidebar scrolls independently from main content", () => {
+  assert.match(brandCss, /\.sprad-shell\s*\{[^}]*overflow:\s*hidden;/s, "desktop shell should contain independent scroll areas");
+  assert.match(brandCss, /\.sprad-sidebar\s*\{[^}]*height:\s*calc\(100dvh - 4rem\);[^}]*overflow-y:\s*auto;/s, "sidebar should own its vertical scroll");
+  assert.match(brandCss, /\.sprad-content\s*\{[^}]*height:\s*calc\(100dvh - 4rem\);[^}]*overflow-y:\s*auto;/s, "main content should scroll separately");
+  assert.match(brandCss, /@media\s*\(max-width:\s*1023px\)\s*\{[^}]*\.sprad-sidebar\s*\{[^}]*overflow:\s*visible;/s, "mobile sidebar should return to normal document flow");
+});
+
+test("login follows UjianMe-style simple panels instead of bento tiles", () => {
+  assert.doesNotMatch(loginSource, /sprad-login-bento/, "login should not render a bento grid");
+  assert.doesNotMatch(loginSource, /sprad-login-tile/, "login should not render decorative bento tiles");
+  assert.match(loginSource, /Modul sistem/, "login should keep a simple module list");
+  assert.match(brandCss, /\.sprad-login-body\s*\{[^}]*background:\s*#f8fafc;/s, "login background should be plain UjianMe slate");
+  assert.match(brandCss, /\.admin-stat-card--primary\s*\{[^}]*background:\s*#ffffff/s, "dashboard primary card should stay simple, not gradient/bento");
 });
 
 function escapeRegex(value) {

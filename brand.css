@@ -1,7 +1,7 @@
 /*
  * File Path: brand.css
- * File Version: SPRAD v2.8-production | compact-font.1
- * Update Info: 2026-06-20 - Kecilkan lagi skala font global sistem SPRAD.
+ * File Version: SPRAD v2.8-production | ujianme-style.1
+ * Update Info: 2026-06-20 - Ringkaskan visual SPRAD mengikut gaya UjianMe dan buang rasa bento yang serabut.
  */
 :root {
   color-scheme: light;
@@ -132,10 +132,7 @@ main {
 
 .sprad-login-body {
   min-height: 100dvh;
-  background:
-    radial-gradient(circle at 8% 8%, rgba(37, 99, 235, .12), transparent 28rem),
-    radial-gradient(circle at 92% 16%, rgba(14, 165, 233, .10), transparent 24rem),
-    linear-gradient(135deg, #f8fafc 0%, #eef4fb 52%, #f7fafc 100%);
+  background: #f8fafc;
 }
 
 .sprad-login-header {
@@ -147,58 +144,47 @@ main {
 .sprad-login-main {
   display: grid !important;
   width: 100%;
-  max-width: 1180px !important;
+  max-width: 1040px !important;
   min-height: calc(100dvh - 4rem);
-  grid-template-columns: minmax(0, 1.08fr) minmax(22rem, .72fr) !important;
+  grid-template-columns: minmax(0, .82fr) minmax(23rem, .68fr) !important;
   align-items: start !important;
-  gap: 1rem !important;
-  padding: 1rem !important;
+  gap: 1.25rem !important;
+  padding: 1.5rem 1rem !important;
   margin: 0 auto !important;
   background: transparent !important;
 }
 
 .sprad-login-overview,
-.sprad-login-panel,
-.sprad-login-tile {
-  background: rgba(255, 255, 255, .92) !important;
-  border: 1px solid rgba(226, 232, 240, .92) !important;
-  box-shadow: 0 22px 45px -34px rgba(15, 23, 42, .42) !important;
+.sprad-login-panel {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: var(--sprad-shadow-sm) !important;
 }
 
 .sprad-login-overview {
   display: grid;
   min-width: 0;
   gap: 1rem;
-  border-radius: 1.25rem;
-  padding: 1rem;
+  border-radius: .9rem;
+  padding: 1.25rem;
   overflow: hidden;
 }
 
 .sprad-login-identity {
   position: relative;
   display: grid;
-  min-height: 17rem;
+  min-height: 0;
   align-content: space-between;
-  gap: 1.25rem;
+  gap: 1rem;
   overflow: hidden;
-  border-radius: 1rem;
-  padding: clamp(1.25rem, 3vw, 2rem);
+  border-radius: .75rem;
+  padding: 0;
   color: #0f172a;
-  background:
-    linear-gradient(135deg, rgba(239, 246, 255, .98), rgba(255, 255, 255, .95) 54%, rgba(236, 253, 245, .86)),
-    #ffffff;
+  background: #ffffff;
 }
 
 .sprad-login-identity::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(37, 99, 235, .08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(37, 99, 235, .08) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: linear-gradient(135deg, rgba(0, 0, 0, .72), transparent 72%);
+  content: none;
 }
 
 .sprad-login-identity > * {
@@ -206,28 +192,29 @@ main {
 }
 
 .sprad-login-seal {
-  width: 4.6rem;
-  height: 4.6rem;
+  width: 3.2rem;
+  height: 3.2rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 1rem;
-  background: #ffffff;
-  box-shadow: 0 16px 32px -24px rgba(15, 23, 42, .55);
+  border-radius: .75rem;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  box-shadow: none;
 }
 
 .sprad-login-seal img {
-  width: 3.75rem;
-  height: 3.75rem;
+  width: 2.5rem;
+  height: 2.5rem;
   object-fit: contain;
 }
 
 .sprad-login-title {
-  max-width: 12ch;
+  max-width: 18ch;
   color: #0f172a;
-  font-size: clamp(2.15rem, 4.8vw, 4.85rem);
-  font-weight: 900;
-  line-height: .92;
+  font-size: clamp(1.8rem, 3.5vw, 3rem);
+  font-weight: 850;
+  line-height: 1;
   letter-spacing: 0;
   text-wrap: balance;
 }
@@ -238,27 +225,6 @@ main {
   font-size: .95rem;
   font-weight: 650;
   line-height: 1.7;
-}
-
-.sprad-login-bento {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.sprad-login-tile {
-  min-width: 0;
-  min-height: 9.4rem;
-  border-radius: 1rem;
-  padding: 1rem;
-}
-
-.sprad-login-tile-wide {
-  grid-column: span 2;
-}
-
-.sprad-login-tile-tall {
-  grid-row: span 2;
 }
 
 .sprad-login-kicker {
@@ -307,7 +273,7 @@ main {
 
 .sprad-login-panel {
   align-self: start;
-  border-radius: 1.25rem;
+  border-radius: .9rem;
   padding: clamp(1.25rem, 2.4vw, 1.75rem);
 }
 
@@ -374,12 +340,12 @@ main {
 }
 
 .sprad-login-submit {
-  background: linear-gradient(135deg, #1e40af, #2563eb) !important;
-  box-shadow: 0 18px 30px -20px rgba(37, 99, 235, .75) !important;
+  background: #2563eb !important;
+  box-shadow: var(--sprad-shadow-sm) !important;
 }
 
 .sprad-login-submit:hover {
-  background: linear-gradient(135deg, #1d4ed8, #0f172a) !important;
+  background: #1d4ed8 !important;
 }
 
 @media (max-width: 1023px) {
@@ -397,17 +363,10 @@ main {
     order: 1;
   }
 
-  .sprad-login-bento {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .sprad-login-help-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .sprad-login-tile-tall {
-    grid-row: auto;
-  }
 }
 
 @media (max-width: 640px) {
@@ -427,19 +386,7 @@ main {
 
   .sprad-login-title {
     max-width: 13ch;
-    font-size: 2.25rem;
-  }
-
-  .sprad-login-bento {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .sprad-login-tile,
-  .sprad-login-tile-wide,
-  .sprad-login-tile-tall {
-    grid-column: auto;
-    grid-row: auto;
-    min-height: 0;
+    font-size: 2rem;
   }
 
   .sprad-login-panel-card {
@@ -461,6 +408,7 @@ main {
 
 .sprad-shell {
   align-items: stretch;
+  min-height: 0;
 }
 
 .sprad-sidebar {
@@ -469,27 +417,41 @@ main {
   border-radius: 0 !important;
   box-shadow: none !important;
   min-width: 0;
+  scrollbar-gutter: stable;
 }
 
 .sprad-content {
   min-width: 0;
+  min-height: 0;
 }
 
 @media (min-width: 1024px) {
   .sprad-shell {
+    height: calc(100dvh - 4rem);
     gap: 0 !important;
-    min-height: calc(100vh - 4rem);
     padding: 0 !important;
+    overflow: hidden;
   }
 
   .sprad-sidebar {
-    min-height: calc(100vh - 4rem);
+    align-self: stretch !important;
+    height: calc(100dvh - 4rem);
+    max-height: calc(100dvh - 4rem);
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 1.25rem 1rem !important;
     top: 4rem !important;
   }
 
   .sprad-content {
+    align-self: stretch;
+    height: calc(100dvh - 4rem);
+    max-height: calc(100dvh - 4rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 1.5rem 2.5rem;
+    scrollbar-gutter: stable;
   }
 }
 
@@ -497,10 +459,16 @@ main {
   .sprad-sidebar {
     border-right: 0 !important;
     border-bottom: 1px solid #e2e8f0 !important;
+    height: auto;
+    max-height: none;
+    overflow: visible;
     padding: 1rem !important;
   }
 
   .sprad-content {
+    height: auto;
+    max-height: none;
+    overflow: visible;
     padding-bottom: 1rem;
   }
 }
@@ -581,37 +549,20 @@ main {
   content: none !important;
 }
 
-.bento-grid {
-  display: grid;
-  grid-template-columns: repeat(1, 1fr);
-  gap: 1.5rem;
-}
-
-@media (min-width: 768px) {
-  .bento-grid { grid-template-columns: repeat(3, 1fr); }
-}
-
-@media (min-width: 1024px) {
-  .bento-grid { grid-template-columns: repeat(4, 1fr); }
-}
-
-.bento-card,
 .admin-stat-card,
 section.rounded-2xl,
 div.rounded-2xl,
 div.rounded-xl {
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
-  border-radius: 1rem !important;
+  border-radius: .75rem !important;
   box-shadow: var(--sprad-shadow-card) !important;
-  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+  transition: box-shadow .2s ease, border-color .2s ease, background-color .2s ease;
 }
 
-.bento-card:hover,
 .admin-stat-card:hover {
-  transform: translateY(-2px);
   border-color: #cbd5e1 !important;
-  box-shadow: var(--sprad-shadow-hover) !important;
+  box-shadow: var(--sprad-shadow-sm) !important;
 }
 
 .admin-dashboard-shell {
@@ -653,18 +604,18 @@ div.rounded-xl {
 
 .admin-dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
   gap: 1rem;
   align-items: stretch;
 }
 
 @media (min-width: 768px) {
-  .admin-stat-card--primary { grid-column: span 2; }
+  .admin-stat-card--primary { grid-column: span 1; }
 }
 
 .admin-stat-card {
-  min-height: 9rem;
-  padding: 1.35rem;
+  min-height: 7.5rem;
+  padding: 1.1rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -673,12 +624,10 @@ div.rounded-xl {
 }
 
 .admin-stat-card--primary {
-  min-height: 10.5rem;
-  background:
-    linear-gradient(135deg, rgba(239, 246, 255, .95), rgba(255, 255, 255, .98) 46%, rgba(238, 242, 255, .92)),
-    #ffffff !important;
-  border-color: #bfdbfe !important;
-  box-shadow: 0 18px 38px -28px rgba(37, 99, 235, .65) !important;
+  min-height: 7.5rem;
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: var(--sprad-shadow-card) !important;
 }
 
 .admin-stat-topline {
@@ -724,9 +673,9 @@ div.rounded-xl {
 }
 
 .admin-stat-value {
-  margin-top: 1.1rem;
+  margin-top: .9rem;
   color: #0f172a;
-  font-size: 2.35rem;
+  font-size: 1.9rem;
   line-height: .95;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
@@ -734,7 +683,7 @@ div.rounded-xl {
 }
 
 .admin-stat-card--primary .admin-stat-value {
-  font-size: clamp(3rem, 4.4vw, 4.3rem);
+  font-size: 1.9rem;
 }
 
 .admin-stat-note {
