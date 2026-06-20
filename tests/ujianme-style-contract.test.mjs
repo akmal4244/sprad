@@ -1,7 +1,7 @@
 /*
  * File Path: tests/ujianme-style-contract.test.mjs
- * File Version: SPRAD v2.8-production | compact-font.1
- * Update Info: 2026-06-20 - Tambah kontrak ujian skala font global yang lebih kecil.
+ * File Version: SPRAD v2.8-production | sidebar-panel.1
+ * Update Info: 2026-06-20 - Tambah kontrak supaya side menu asing daripada card kandungan.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -14,6 +14,13 @@ const read = filePath => fs.readFileSync(path.join(rootDir, filePath), "utf8");
 
 const brandCss = read("brand.css");
 const appShellSource = read("assets/js/components/app-shell.js");
+const sidebarSources = [
+  "assets/js/pages/ai-intake-page.js",
+  "assets/js/pages/audit-workspace-page.js",
+  "assets/js/pages/dashboard-page.js",
+  "assets/js/pages/reports-page.js",
+  "assets/js/pages/system-health-page.js"
+].map(read).join("\n");
 
 test("SPRAD global style follows UjianMe shell tokens", () => {
   [
@@ -43,6 +50,15 @@ test("sidebar navigation uses UjianMe menu item classes", () => {
 test("SPRAD uses a compact global typography scale", () => {
   assert.match(brandCss, /html\s*\{[^}]*font-size:\s*14px;/s, "desktop base font should be compact");
   assert.match(brandCss, /@media\s*\(max-width:\s*640px\)\s*\{[^}]*html\s*\{[^}]*font-size:\s*13\.5px;/s, "mobile base font should be compact");
+});
+
+test("sidebar is separated from content cards", () => {
+  assert.match(brandCss, /\.sprad-sidebar\s*\{/, "sidebar needs its own panel class");
+  assert.match(brandCss, /\.sprad-content\s*\{/, "content area needs separate spacing from sidebar");
+  assert.match(sidebarSources, /sprad-sidebar/, "page sidebars must use the dedicated sidebar class");
+  assert.match(sidebarSources, /sprad-content/, "page content sections must be separated from sidebar");
+  assert.doesNotMatch(sidebarSources, /<aside class="[^"]*rounded-2xl[^"]*shadow-sm/, "sidebar must not be styled like a card");
+  assert.doesNotMatch(brandCss, /aside\s*\{[^}]*box-shadow/s, "generic aside must not receive card shadow");
 });
 
 function escapeRegex(value) {

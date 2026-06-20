@@ -1,7 +1,7 @@
 /*
  * File Path: assets/js/pages/audit-workspace-page.js
- * File Version: SPRAD v2.8-production | metadata-header.1
- * Update Info: 2026-06-20 - Tambah metadata header untuk monitor path, versi dan info update.
+ * File Version: SPRAD v2.8-production | sidebar-panel.1
+ * Update Info: 2026-06-20 - Asingkan side menu daripada card kandungan.
  */
 import { STORAGE_KEYS } from "../config.js";
 import {
@@ -724,8 +724,8 @@ function ensureAuditShell() {
         <nav class="hidden items-center gap-6 text-xs font-bold uppercase tracking-wide text-slate-600 sm:flex"><a href="dashboard" class="hover:text-blue-600">Dashboard</a><button id="logout" type="button" class="rounded-full bg-slate-900 px-4 py-2 text-white transition hover:bg-black">Log keluar</button></nav>
       </div>
     </header>
-    <main class="mx-auto grid w-full max-w-7xl gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[18rem_minmax(0,1fr)] lg:px-8">
-      <aside class="self-start rounded-2xl border border-slate-200 bg-white p-4 shadow-sm lg:sticky lg:top-20">
+    <main class="sprad-shell mx-auto grid w-full max-w-7xl gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[18rem_minmax(0,1fr)] lg:px-8">
+      <aside class="sprad-sidebar self-start lg:sticky lg:top-16">
         <div class="flex items-center justify-between gap-3"><p class="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Ruang kerja</p><span id="sidebarRole" class="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-blue-700">SPRAD</span></div>
         <div class="mt-4 space-y-2">
           <a href="dashboard" data-nav-route="dashboard" class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500"><i class="fa-solid fa-chart-line w-4"></i>Dashboard</a>
@@ -744,7 +744,7 @@ function ensureAuditShell() {
           <a href="settings" data-nav-route="settings" class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500"><i class="fa-solid fa-sliders w-4"></i>Tetapan</a>
         </div>
       </aside>
-      <section class="grid content-start gap-5">
+      <section class="sprad-content grid content-start gap-5">
         <div class="brand-cover rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><p id="pageEyebrow" class="text-xs font-extrabold uppercase tracking-widest text-blue-600"></p><h1 id="pageTitle" class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl"></h1><p id="pageDescription" class="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-500"></p></div>
         <div class="admin-dashboard-grid"><article class="admin-stat-card admin-stat-card--primary"><div class="admin-stat-topline"><p class="admin-stat-label">Jumlah</p><div class="admin-stat-icon"><i class="fa-solid fa-database"></i></div></div><div><h3 id="totalCount" class="admin-stat-value">0</h3></div></article><article class="admin-stat-card"><div class="admin-stat-topline"><p class="admin-stat-label">Aktif</p><span class="admin-stat-badge admin-stat-badge--active">Aktif</span></div><div><h3 id="activeCount" class="admin-stat-value">0</h3></div></article><article class="admin-stat-card"><div class="admin-stat-topline"><p class="admin-stat-label">Arkib</p><span class="admin-stat-badge admin-stat-badge--warning">Arkib</span></div><div><h3 id="archivedCount" class="admin-stat-value">0</h3></div></article><article class="admin-stat-card"><div class="admin-stat-topline"><p class="admin-stat-label">Status data</p><div class="admin-stat-icon"><i class="fa-solid fa-signal"></i></div></div><div><h3 id="cacheStatus" class="admin-stat-note">-</h3></div></article></div>
         <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_390px]">
