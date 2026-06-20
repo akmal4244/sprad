@@ -1,7 +1,7 @@
 /*
  * File Path: brand.css
- * File Version: SPRAD v2.8-production | ujianme-style.1
- * Update Info: 2026-06-20 - Ringkaskan visual SPRAD mengikut gaya UjianMe dan buang rasa bento yang serabut.
+ * File Version: SPRAD v2.8-production | ui-qa.1
+ * Update Info: 2026-06-20 - Baiki header halaman supaya tajuk tidak overflow ke kad ringkasan.
  */
 :root {
   color-scheme: light;
@@ -421,6 +421,10 @@ main {
 }
 
 .sprad-content {
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1.25rem;
   min-width: 0;
   min-height: 0;
 }
@@ -537,16 +541,25 @@ main {
 }
 
 .brand-cover {
+  display: grid !important;
+  align-content: start !important;
+  gap: .55rem !important;
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
   border-radius: 1rem !important;
   box-shadow: var(--sprad-shadow-sm) !important;
-  min-height: 0 !important;
+  height: auto !important;
+  min-height: max-content !important;
 }
 
 .brand-cover::before,
 .brand-cover::after {
   content: none !important;
+}
+
+.brand-cover > :where(p, h1, h2) {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 
 .admin-stat-card,
