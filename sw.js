@@ -1,9 +1,9 @@
 /*
  * File Path: sw.js
- * File Version: SPRAD v2.8-production | performance-nav.1
- * Update Info: 2026-06-20 - Cache aset SPRAD untuk navigation lebih pantas di GitHub Pages.
+ * File Version: SPRAD v2.8-production | sidebar-cleanup.1
+ * Update Info: 2026-06-21 - Bump cache supaya CSS sidebar baharu aktif selepas deploy.
  */
-const CACHE_NAME = "sprad-v2.8-performance-nav.1";
+const CACHE_NAME = "sprad-v2.8-sidebar-cleanup.1";
 const APP_SHELL = [
   "./",
   "./index.html",

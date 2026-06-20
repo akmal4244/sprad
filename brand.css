@@ -1,7 +1,7 @@
 /*
  * File Path: brand.css
- * File Version: SPRAD v2.8-production | performance-nav.1
- * Update Info: 2026-06-20 - Tambah indikator soft navigation dan cache UI untuk menu lebih pantas.
+ * File Version: SPRAD v2.8-production | sidebar-cleanup.1
+ * Update Info: 2026-06-21 - Buang paparan Ruang Kerja dan role pill pada bahagian atas sidebar.
  */
 :root {
   color-scheme: light;
@@ -453,6 +453,18 @@ main {
   box-shadow: none !important;
   min-width: 0;
   scrollbar-gutter: stable;
+}
+
+.sprad-sidebar > .flex.items-center.justify-between.gap-3 {
+  display: none !important;
+}
+
+.sprad-sidebar > .flex.items-center.justify-between.gap-3 + .mt-4 {
+  margin-top: 0 !important;
+}
+
+.sprad-sidebar > .mt-4.space-y-2 .menu-section:first-child {
+  margin-top: 0;
 }
 
 .sprad-content {

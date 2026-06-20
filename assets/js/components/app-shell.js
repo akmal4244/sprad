@@ -1,7 +1,7 @@
 /*
  * File Path: assets/js/components/app-shell.js
- * File Version: SPRAD v2.8-production | performance-nav.1
- * Update Info: 2026-06-20 - Aktifkan soft navigation dan cache performance pada shell utama.
+ * File Version: SPRAD v2.8-production | sidebar-cleanup.1
+ * Update Info: 2026-06-21 - Buang header Ruang Kerja dan role pill daripada shell sidebar.
  */
 import { STORAGE_KEYS } from "../config.js";
 import { revokeSession } from "../core/api.js";
@@ -111,6 +111,7 @@ export function setupLogoutButton() {
 
 export function setupSidebar(currentRoute, session = getSessionContext()) {
   initSpaNavigation();
+  removeSidebarHeader();
   const navContainer = document.querySelector("aside .mt-4.space-y-2");
   if (navContainer) {
     const role = normalizeRole(session.v2Role || session.legacyRole);
@@ -128,6 +129,12 @@ export function setupSidebar(currentRoute, session = getSessionContext()) {
     const active = route === currentRoute;
     link.className = active ? "menu-item menu-active" : "menu-item";
   });
+}
+
+function removeSidebarHeader() {
+  document.querySelector("#sidebarRole")
+    ?.closest(".flex.items-center.justify-between.gap-3")
+    ?.remove();
 }
 
 function standardSidebarNav(role) {

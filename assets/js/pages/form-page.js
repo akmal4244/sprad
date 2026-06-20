@@ -1,7 +1,7 @@
 /*
  * File Path: assets/js/pages/form-page.js
- * File Version: SPRAD v2.8-production | performance-nav.1
- * Update Info: 2026-06-20 - Aktifkan soft navigation pada borang supaya menu tidak reload penuh.
+ * File Version: SPRAD v2.8-production | sidebar-cleanup.1
+ * Update Info: 2026-06-21 - Buang header Ruang Kerja dan role pill daripada sidebar borang.
  */
 import { getApiUrl, STORAGE_KEYS } from "../config.js";
 import { revokeSession } from "../core/api.js";
@@ -376,6 +376,7 @@ function setLoading(isLoading, text = "Sedang menghantar...") {
 
 function setupSidebar() {
   initSpaNavigation();
+  sidebarRole?.closest(".flex.items-center.justify-between.gap-3")?.remove();
   const role = normalizeRole(localStorage.getItem(STORAGE_KEYS.v2Role) || localStorage.getItem(STORAGE_KEYS.role) || "viewer");
   const isAdmin = role === "super_admin" || role === "institution_admin";
   sidebarRole.textContent = getRoleLabel(role);
