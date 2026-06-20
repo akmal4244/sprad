@@ -139,6 +139,9 @@ function doPost(e) {
     ensureSheets_();
     const body = parseBody_(e);
     if (isV2MutationAction_(body.action)) return handleV2Mutation_(body);
+    if (body.action === "findings.bulkCreate.legacy") {
+      return saveBulkFindingsMutation_(body);
+    }
     if (body.action === "findings.create.legacy") {
       return saveFindingMutation_(body);
     }
@@ -226,18 +229,31 @@ function saveContact({ name, email, message }) {
 }
 
 function saveFindingMutation_(body) {
-  const requestId = clean_(body.request_id || body.requestId || Utilities.getUuid());
+  const payload = legacyFindingPayload_(body);
+  return saveLegacyFindingsMutation_(body, payload, [payload]);
+}
+
+function saveBulkFindingsMutation_(body) {
+  const payload = legacyFindingPayload_(body);
+  const items = Array.isArray(payload.items) ? payload.items : [];
+  return saveLegacyFindingsMutation_(body, payload, items);
+}
+
+function saveLegacyFindingsMutation_(body, commonPayload, items) {
+  const action = clean_(body.action || "findings.create.legacy");
+  const requestId = clean_(body.request_id || body.requestId || commonPayload.request_id || commonPayload.requestId || Utilities.getUuid());
   const existingReceipt = findMutationReceipt_(requestId);
   if (existingReceipt) return json({ ok: existingReceipt.status === "success", receipt: existingReceipt });
 
-  const token = clean_(body.token);
+  const token = clean_(body.token || commonPayload.token);
   const user = validateToken(token);
+  const institutionId = user ? scopedInstitutionId_(commonPayload, user) : DEFAULT_INSTITUTION_ID;
   if (!user) {
     writeMutationReceipt_({
       requestId,
       userId: "",
-      institutionId: DEFAULT_INSTITUTION_ID,
-      action: clean_(body.action),
+      institutionId,
+      action,
       entityType: "finding",
       entityId: "",
       status: "error",
@@ -254,26 +270,106 @@ function saveFindingMutation_(body) {
     const repeatedReceipt = findMutationReceipt_(requestId);
     if (repeatedReceipt) return json({ ok: repeatedReceipt.status === "success", receipt: repeatedReceipt });
 
-    const risk = calculateRisk_(body.likelihood, body.impact, user.institution_id);
-    const now = new Date();
-    const findingId = Utilities.getUuid();
-    const categoryId = findRiskCategoryIdByName_(body.risk_category) || clean_(body.risk_category);
-    const findingNo = `SPRAD-${Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyyMMdd-HHmmss")}`;
+    if (!Array.isArray(items) || !items.length) {
+      throw appError_("VALIDATION_ERROR", "Sekurang-kurangnya satu isu audit perlu ditambah.");
+    }
 
-    const finding = [
+    const now = new Date();
+    const findingIds = [];
+    items.forEach((item, index) => {
+      const finding = buildLegacyFindingRow_(commonPayload, item, user, institutionId, now, index);
+      SpreadsheetApp.getActiveSpreadsheet()
+        .getSheetByName(SHEET_FINDINGS)
+        .appendRow(finding.row);
+      findingIds.push(finding.id);
+      if (finding.unitId) {
+        SpreadsheetApp.getActiveSpreadsheet()
+          .getSheetByName(SHEET_FINDING_UNITS)
+          .appendRow([Utilities.getUuid(), institutionId, finding.id, finding.unitId, now, user.id]);
+      }
+      appendAuditLog_({
+        institutionId,
+        userId: user.id,
+        action: "findings.create",
+        entityType: "finding",
+        entityId: finding.id,
+        requestId,
+        beforeJson: "",
+        afterJson: JSON.stringify({ finding_id: finding.id, calculated_score: finding.risk.score, calculated_level: finding.risk.levelLabel })
+      });
+    });
+
+    appendLegacyContact_({
+      name: clean_(commonPayload.name),
+      email: clean_(commonPayload.email),
+      message: legacyContactSummary_(commonPayload, items)
+    });
+
+    writeMutationReceipt_({
+      requestId,
+      userId: user.id,
+      institutionId,
+      action,
+      entityType: "finding",
+      entityId: findingIds.join(","),
+      status: "success",
+      errorCode: "",
+      errorMessage: ""
+    });
+
+    return json({ ok: true, request_id: requestId, finding_ids: findingIds, count: findingIds.length });
+  } catch (err) {
+    writeMutationReceipt_({
+      requestId,
+      userId: user ? user.id : "",
+      institutionId,
+      action,
+      entityType: "finding",
+      entityId: "",
+      status: "error",
+      errorCode: err.code || "SERVER_ERROR",
+      errorMessage: err.message
+    });
+    throw err;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function legacyFindingPayload_(body) {
+  if (body && typeof body.payload === "object" && body.payload !== null) return body.payload;
+  return body || {};
+}
+
+function buildLegacyFindingRow_(commonPayload, item, user, institutionId, now, index) {
+  const issue = { ...commonPayload, ...item };
+  const risk = calculateRisk_(issue.likelihood, issue.impact, institutionId);
+  const findingId = Utilities.getUuid();
+  const categoryId = findRiskCategoryIdByName_(issue.risk_category_name || issue.risk_category) || clean_(issue.risk_category);
+  const timestamp = Utilities.formatDate(now, Session.getScriptTimeZone(), "yyyyMMdd-HHmmss");
+  const findingNo = clean_(issue.finding_no) || `SPRAD-${timestamp}-${String(index + 1).padStart(2, "0")}`;
+  const issueDescription = required_(issue.issue_description || issue.message, "Huraian isu audit");
+  const message = clean_(issue.message || issueDescription);
+  const unitId = knownTenantRecordId_(SHEET_ORG_UNITS, commonPayload.org_unit, institutionId);
+
+  return {
+    id: findingId,
+    unitId,
+    risk,
+    row: [
       findingId,
-      DEFAULT_INSTITUTION_ID,
-      clean_(body.audit_cycle),
+      institutionId,
+      clean_(commonPayload.audit_cycle),
       "",
       categoryId,
       findingNo,
-      clean_(body.finding_title),
-      clean_(body.message),
-      clean_(body.message),
-      clean_(body.root_cause),
-      clean_(body.impact_description),
-      clean_(body.audit_evidence),
-      clean_(body.recommendation),
+      required_(issue.finding_title || issue.title, "Tajuk isu"),
+      issueDescription,
+      clean_(issue.detailed_justification || message),
+      clean_(issue.root_cause),
+      clean_(issue.impact_description),
+      clean_(issue.audit_evidence),
+      clean_(issue.recommendation),
       risk.likelihood,
       risk.impact,
       risk.score,
@@ -295,64 +391,24 @@ function saveFindingMutation_(body) {
       "",
       "",
       1
-    ];
+    ]
+  };
+}
 
-    SpreadsheetApp.getActiveSpreadsheet()
-      .getSheetByName(SHEET_FINDINGS)
-      .appendRow(finding);
+function knownTenantRecordId_(sheetName, id, institutionId) {
+  id = clean_(id);
+  if (!id) return "";
+  const record = getRecordById_(sheetName, id);
+  if (!record || record.deleted_at) return "";
+  return clean_(record.institution_id || DEFAULT_INSTITUTION_ID) === clean_(institutionId || DEFAULT_INSTITUTION_ID)
+    ? id
+    : "";
+}
 
-    if (clean_(body.org_unit)) {
-      SpreadsheetApp.getActiveSpreadsheet()
-        .getSheetByName(SHEET_FINDING_UNITS)
-        .appendRow([Utilities.getUuid(), DEFAULT_INSTITUTION_ID, findingId, clean_(body.org_unit), now, user.id]);
-    }
-
-    appendLegacyContact_({
-      name: clean_(body.name),
-      email: clean_(body.email),
-      message: clean_(body.message)
-    });
-
-    appendAuditLog_({
-      institutionId: DEFAULT_INSTITUTION_ID,
-      userId: user.id,
-      action: "findings.create",
-      entityType: "finding",
-      entityId: findingId,
-      requestId,
-      beforeJson: "",
-      afterJson: JSON.stringify({ finding_id: findingId, calculated_score: risk.score, calculated_level: risk.levelLabel })
-    });
-
-    writeMutationReceipt_({
-      requestId,
-      userId: user.id,
-      institutionId: DEFAULT_INSTITUTION_ID,
-      action: "findings.create",
-      entityType: "finding",
-      entityId: findingId,
-      status: "success",
-      errorCode: "",
-      errorMessage: ""
-    });
-
-    return json({ ok: true, request_id: requestId, finding_id: findingId });
-  } catch (err) {
-    writeMutationReceipt_({
-      requestId,
-      userId: user ? user.id : "",
-      institutionId: DEFAULT_INSTITUTION_ID,
-      action: clean_(body.action),
-      entityType: "finding",
-      entityId: "",
-      status: "error",
-      errorCode: "SERVER_ERROR",
-      errorMessage: err.message
-    });
-    throw err;
-  } finally {
-    lock.releaseLock();
-  }
+function legacyContactSummary_(commonPayload, items) {
+  if (items.length === 1) return clean_(items[0].message || items[0].issue_description);
+  const institution = clean_(commonPayload.institution_name || commonPayload.institution_id || "institusi");
+  return `${items.length} isu audit dihantar untuk ${institution}.`;
 }
 
 function register({ username, password, role }) {

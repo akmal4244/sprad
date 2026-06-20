@@ -17,6 +17,8 @@ const frontendCrudSources = [
 ].join("\n");
 const auditWorkspaceSource = read("assets/js/pages/audit-workspace-page.js");
 const dataMasterPageSource = read("assets/js/pages/data-master-page.js");
+const formHtml = read("form.html");
+const formPageSource = read("assets/js/pages/form-page.js");
 
 const mutationActions = [
   "institutions.create",
@@ -127,6 +129,16 @@ test("frontend hides disallowed CRUD controls before backend rejection", () => {
   assert.doesNotMatch(auditWorkspaceSource, /name: "workflow_status"/, "finding status must not be a direct edit field");
   assert.match(dataMasterPageSource, /permissions:\s*\["institutions\.manage"\]/, "institution page must be super-admin only");
   assert.match(dataMasterPageSource, /requireSession\(\{\s*permissions: definition\.permissions/, "data master pages must use page-level permissions");
+});
+
+test("legacy public assessment form supports multiple audit issues in one submission", () => {
+  assert.match(formHtml, /id="issueList"/, "form needs a repeatable issue list container");
+  assert.match(formHtml, /id="addIssueBtn"/, "form needs an add issue button");
+  assert.match(formHtml, /assets\/js\/pages\/form-page\.js/, "form should use the shared page module");
+  assert.match(formPageSource, /buildBulkFindingPayload/, "form page must build a bulk findings payload");
+  assert.match(formPageSource, /"findings\.bulkCreate\.legacy"/, "form page must submit bulk legacy findings");
+  assert.match(codeGs, /"findings\.bulkCreate\.legacy"/, "Apps Script must route bulk legacy findings");
+  assert.match(codeGs, /function saveBulkFindingsMutation_/, "Apps Script must implement bulk finding persistence");
 });
 
 function quotedAction(action) {

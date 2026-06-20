@@ -21,7 +21,7 @@
     body { font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; }
   </style>
 </head>
-<body class="min-h-screen bg-slate-50 text-slate-800 antialiased">
+<body data-page="form" class="min-h-screen bg-slate-50 text-slate-800 antialiased">
   <div id="toast" class="fixed right-4 top-20 z-[100] hidden w-[calc(100%-2rem)] max-w-sm rounded-xl border border-slate-200 bg-white p-4 shadow-xl shadow-slate-200/80">
     <div class="flex gap-3">
       <div id="toastIcon" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
@@ -34,7 +34,7 @@
     </div>
   </div>
 
-  <header class="bg-white border-b border-gray-100 shadow-sm z-50 h-16 sticky top-0">
+  <header class="sticky top-0 z-50 h-16 border-b border-gray-100 bg-white shadow-sm">
     <div class="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
       <a href="./" class="flex items-center gap-3">
         <img src="https://www.akm.gov.my/templates/yootheme/cache/91/JATA%20NEGARA%20AI-01-91eac591.webp" alt="Jata Negara" width="40" height="40" decoding="async" class="h-10 w-10 object-contain drop-shadow-sm">
@@ -100,331 +100,94 @@
         </a>
       </div>
       <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-        <p class="text-xs font-extrabold uppercase tracking-widest text-slate-400">Status</p>
-        <p class="mt-2 text-xl font-extrabold text-emerald-600">Dibuka</p>
-        <p class="mt-2 text-xs font-semibold leading-5 text-slate-500">Borang V2 menggunakan matriks 1-4 x 1-4 dan menyimpan data secara kompatibel dengan backend semasa.</p>
+        <p class="text-xs font-extrabold uppercase tracking-widest text-slate-400">Mod borang</p>
+        <p class="mt-2 text-xl font-extrabold text-emerald-600">Multi-isu</p>
+        <p class="mt-2 text-xs font-semibold leading-5 text-slate-500">Tambah beberapa isu audit dalam satu penilaian untuk institusi dan kitaran audit yang sama.</p>
       </div>
     </aside>
 
-    <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div class="mb-4 flex flex-col gap-2 border-b border-slate-100 pb-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p class="text-xs font-extrabold uppercase tracking-widest text-blue-600">Borang SPRAD</p>
-          <h1 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Penilaian risiko</h1>
-        </div>
-        <p class="text-sm font-semibold text-slate-500">Matriks rasmi: Kemungkinan 1-4 x Kesan 1-4.</p>
-      </div>
-      <form id="contactForm" class="grid gap-3">
-        <div class="grid gap-3 md:grid-cols-2">
-          <label class="block">
-            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Nama pelapor</span>
-            <input id="name" name="name" autocomplete="name" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
-          </label>
-          <label class="block">
-            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">E-mel</span>
-            <input id="email" name="email" type="email" autocomplete="email" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
-          </label>
-        </div>
-
-        <div class="grid gap-3 md:grid-cols-2">
-          <label class="block">
-            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Institusi</span>
-            <input id="institution_name" name="institution_name" required value="Institusi Default" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
-          </label>
-          <label class="block">
-            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">PTJ / Jabatan / Unit</span>
-            <input id="org_unit" name="org_unit" required placeholder="Contoh: Fakulti / Jabatan / Unit" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
-          </label>
-        </div>
-
-        <div class="grid gap-3 md:grid-cols-2">
-          <label class="block">
-            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Kitaran audit</span>
-            <input id="audit_cycle" name="audit_cycle" required placeholder="Contoh: Audit Dalam 2026" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
-          </label>
-          <label class="block">
-            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Kategori risiko</span>
-            <select id="risk_category" name="risk_category" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-extrabold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
-              <option value="Tiada Mandat">Tiada Mandat</option>
-              <option value="Kesilapan Isu Teknikal">Kesilapan Isu Teknikal</option>
-              <option value="Kecuaian">Kecuaian</option>
-              <option value="Pembaziran">Pembaziran</option>
-              <option value="Penyelewengan / Ketirisan">Penyelewengan / Ketirisan</option>
-            </select>
-          </label>
-        </div>
-
-        <label class="block">
-          <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Tajuk isu audit</span>
-          <input id="finding_title" name="finding_title" required placeholder="Ringkasan penemuan atau isu audit" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
-        </label>
-
-        <div class="grid gap-3 md:grid-cols-[1fr_1fr_220px]">
-          <label class="block">
-            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Kemungkinan</span>
-            <select id="likelihood" name="likelihood" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-extrabold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
-              <option value="1">1 - Rendah</option>
-              <option value="2">2 - Sederhana</option>
-              <option value="3">3 - Tinggi</option>
-              <option value="4">4 - Sangat Tinggi</option>
-            </select>
-          </label>
-          <label class="block">
-            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Kesan</span>
-            <select id="impact" name="impact" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-extrabold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
-              <option value="1">1 - Rendah</option>
-              <option value="2">2 - Sederhana</option>
-              <option value="3">3 - Tinggi</option>
-              <option value="4">4 - Sangat Tinggi</option>
-            </select>
-          </label>
-          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p class="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Pratonton risiko</p>
-            <div class="mt-2 flex items-end justify-between gap-3">
-              <p id="riskScore" class="text-4xl font-extrabold text-slate-900">1</p>
-              <span id="riskLevel" class="rounded-full px-3 py-1 text-xs font-extrabold text-white">Rendah</span>
+    <section class="grid gap-4">
+      <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+          <div>
+            <p class="text-xs font-extrabold uppercase tracking-widest text-blue-600">Borang SPRAD</p>
+            <h1 class="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Penilaian risiko audit</h1>
+            <p class="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-500">Isi maklumat pelapor sekali, kemudian tambah semua isu audit berkaitan institusi, PTJ dan kitaran yang sama.</p>
+          </div>
+          <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4">
+            <p class="text-[11px] font-extrabold uppercase tracking-widest text-blue-700">Jumlah isu</p>
+            <div class="mt-3 flex items-end justify-between">
+              <p id="issueCount" class="text-5xl font-extrabold text-blue-700">1</p>
+              <span class="rounded-full bg-white px-3 py-1 text-xs font-extrabold text-blue-700">aktif</span>
             </div>
-            <p id="riskFormula" class="mt-2 text-xs font-bold text-slate-500">K1 x I1</p>
           </div>
         </div>
+      </div>
 
-        <label class="block">
-          <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Huraian isu audit</span>
-          <textarea id="message" name="message" required class="mt-2 min-h-24 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"></textarea>
-        </label>
+      <form id="contactForm" class="grid gap-4">
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="mb-4 border-b border-slate-100 pb-4">
+            <p class="text-xs font-extrabold uppercase tracking-widest text-slate-400">Maklumat bersama</p>
+            <h2 class="mt-1 text-xl font-extrabold text-slate-900">Pelapor, institusi dan skop audit</h2>
+          </div>
+          <div class="grid gap-3 md:grid-cols-2">
+            <label class="block">
+              <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Nama pelapor *</span>
+              <input id="name" name="name" autocomplete="name" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+            </label>
+            <label class="block">
+              <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">E-mel *</span>
+              <input id="email" name="email" type="email" autocomplete="email" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+            </label>
+          </div>
+          <div class="mt-3 grid gap-3 lg:grid-cols-3">
+            <label class="block">
+              <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Institusi *</span>
+              <select id="institution_id" name="institution_id" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-extrabold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+                <option value="inst_default">Institusi Default</option>
+              </select>
+            </label>
+            <label class="block">
+              <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">PTJ / Unit *</span>
+              <select id="org_unit" name="org_unit" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-extrabold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+                <option value="unit_demo_01">UAD - Unit Audit Dalam</option>
+              </select>
+            </label>
+            <label class="block">
+              <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Kitaran audit *</span>
+              <select id="audit_cycle" name="audit_cycle" required class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-extrabold text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100">
+                <option value="cycle_demo_01">2026 - Audit Dalam 2026</option>
+              </select>
+            </label>
+          </div>
+        </section>
 
-        <div class="grid gap-3 md:grid-cols-2">
-          <label class="block">
-            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Punca utama</span>
-            <textarea id="root_cause" name="root_cause" required class="mt-2 min-h-24 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"></textarea>
-          </label>
-          <label class="block">
-            <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Kesan / implikasi</span>
-            <textarea id="impact_description" name="impact_description" required class="mt-2 min-h-24 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"></textarea>
-          </label>
-        </div>
+        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div class="mb-4 flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p class="text-xs font-extrabold uppercase tracking-widest text-slate-400">Senarai isu audit</p>
+              <h2 class="mt-1 text-xl font-extrabold text-slate-900">Item penemuan</h2>
+            </div>
+            <button id="addIssueBtn" type="button" class="inline-flex items-center justify-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-extrabold text-blue-700 transition hover:bg-blue-100">
+              <i class="fa-solid fa-plus"></i>
+              Tambah isu
+            </button>
+          </div>
 
-        <label class="block">
-          <span class="text-xs font-extrabold uppercase tracking-wide text-slate-500">Syor audit / tindakan dicadangkan</span>
-          <textarea id="recommendation" name="recommendation" required class="mt-2 min-h-24 w-full resize-y rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold leading-6 text-slate-800 outline-none transition focus:border-blue-600 focus:ring-4 focus:ring-blue-100"></textarea>
-        </label>
+          <div id="issueList" class="grid gap-4"></div>
 
-        <button id="submitBtn" type="submit" class="flex w-full items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-blue-100 transition hover:-translate-y-0.5 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100 disabled:translate-y-0 disabled:cursor-wait disabled:opacity-80 sm:w-auto sm:px-8">
-          <i id="submitIcon" class="fa-solid fa-paper-plane"></i>
-          <span id="submitLabel">Hantar penilaian</span>
-        </button>
+          <div class="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <p id="msg" class="min-h-6 text-sm font-bold text-emerald-600"></p>
+            <button id="submitBtn" type="submit" class="flex w-full items-center justify-center gap-2 rounded-full bg-blue-600 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-blue-100 transition hover:-translate-y-0.5 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-100 disabled:translate-y-0 disabled:cursor-wait disabled:opacity-80 sm:w-auto sm:px-8">
+              <i id="submitIcon" class="fa-solid fa-paper-plane"></i>
+              <span id="submitLabel">Hantar penilaian</span>
+            </button>
+          </div>
+        </section>
       </form>
-      <p id="msg" class="min-h-6 pt-4 text-sm font-bold text-emerald-600"></p>
     </section>
   </main>
 
-  <script type="module">
-    import { getApiUrl, STORAGE_KEYS } from "./assets/js/config.js";
-    import { calculateRisk } from "./assets/js/core/risk-engine.js";
-    import { buildMutationRequest, pollMutationReceipt } from "./assets/js/core/mutation-utils.js";
-
-    const URL = getApiUrl();
-    const form = document.querySelector("#contactForm");
-    const msg = document.querySelector("#msg");
-    const logout = document.querySelector("#logout");
-    const submitBtn = document.querySelector("#submitBtn");
-    const submitIcon = document.querySelector("#submitIcon");
-    const submitLabel = document.querySelector("#submitLabel");
-    const sidebarRole = document.querySelector("#sidebarRole");
-    const riskScore = document.querySelector("#riskScore");
-    const riskLevel = document.querySelector("#riskLevel");
-    const riskFormula = document.querySelector("#riskFormula");
-    let toastTimer;
-
-    function normalizeCleanUrl(route) {
-      const storedPath = sessionStorage.getItem("spradCleanPath");
-      sessionStorage.removeItem("spradCleanPath");
-      const cleanPath = route === "home"
-        ? window.location.pathname.replace(/\/index\.html$/, "/")
-        : window.location.pathname.replace(/\/[^/]*\.html$/, `/${route}`);
-      const targetPath = storedPath || cleanPath;
-      if (targetPath && `${window.location.pathname}${window.location.search}${window.location.hash}` !== targetPath) {
-        history.replaceState(null, "", targetPath);
-      }
-    }
-
-    normalizeCleanUrl("form");
-
-    if (!localStorage.getItem(STORAGE_KEYS.token)) {
-      window.location.href = "login";
-    }
-
-    function setLoading(isLoading, text = "Sedang menghantar...") {
-      submitBtn.disabled = isLoading;
-      submitIcon.className = isLoading ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-paper-plane";
-      submitLabel.textContent = isLoading ? text : "Hantar penilaian";
-    }
-
-    function showToast(title, text, type = "info") {
-      const toast = document.querySelector("#toast");
-      const toastTitle = document.querySelector("#toastTitle");
-      const toastText = document.querySelector("#toastText");
-      const toastIcon = document.querySelector("#toastIcon");
-      const styles = {
-        success: ["bg-emerald-50 text-emerald-600", "fa-solid fa-circle-check"],
-        error: ["bg-red-50 text-red-600", "fa-solid fa-circle-exclamation"],
-        info: ["bg-blue-50 text-blue-600", "fa-solid fa-circle-info"]
-      };
-      const [iconClass, iconName] = styles[type] || styles.info;
-      toastTitle.textContent = title;
-      toastText.textContent = text;
-      toastIcon.className = "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg " + iconClass;
-      toastIcon.innerHTML = `<i class="${iconName}"></i>`;
-      toast.classList.remove("hidden");
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => toast.classList.add("hidden"), 3800);
-    }
-
-    function setupSidebar() {
-      const role = (localStorage.getItem(STORAGE_KEYS.role) || "pengguna").toLowerCase();
-      const isAdmin = role === "pentadbir";
-      sidebarRole.textContent = isAdmin ? "Pentadbir" : "Pengguna";
-      sidebarRole.className = isAdmin
-        ? "rounded-full bg-blue-50 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-blue-700"
-        : "rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-emerald-700";
-
-      document.querySelectorAll("[data-pentadbir-only]").forEach((item) => {
-        const note = item.querySelector("[data-locked-note]");
-        if (isAdmin) {
-          item.className = "flex items-start gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900";
-          item.removeAttribute("aria-disabled");
-          if (note) {
-            note.dataset.lockedText = note.dataset.lockedText || note.textContent;
-            note.textContent = "";
-            note.classList.add("hidden");
-          }
-          return;
-        }
-        item.className = "flex items-start gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-400 opacity-70";
-        item.setAttribute("aria-disabled", "true");
-        if (note) {
-          note.textContent = note.dataset.lockedText || "Akses pentadbir diperlukan";
-          note.classList.remove("hidden");
-        }
-        item.addEventListener("click", (event) => {
-          event.preventDefault();
-          showToast("Akses pentadbir diperlukan", "Menu ini hanya untuk pentadbir.", "info");
-        });
-      });
-    }
-
-    async function postData(data) {
-      await fetch(URL, {
-        method: "POST",
-        mode: "no-cors",
-        body: JSON.stringify(data)
-      });
-    }
-
-    function clearCredentialsIfNotRemembered() {
-      localStorage.removeItem("spradPassword");
-      if (localStorage.getItem(STORAGE_KEYS.rememberMe) === "true") return;
-      localStorage.removeItem(STORAGE_KEYS.username);
-    }
-
-    logout.addEventListener("click", () => {
-      clearCredentialsIfNotRemembered();
-      localStorage.removeItem(STORAGE_KEYS.token);
-      localStorage.removeItem(STORAGE_KEYS.role);
-      localStorage.removeItem(STORAGE_KEYS.v2Role);
-      localStorage.removeItem(STORAGE_KEYS.userId);
-      localStorage.removeItem(STORAGE_KEYS.institutionId);
-      window.location.href = "login";
-    });
-
-    function updateRiskPreview() {
-      const risk = calculateRisk(form.likelihood.value, form.impact.value);
-      riskScore.textContent = risk.score;
-      riskLevel.textContent = risk.level;
-      riskLevel.style.backgroundColor = risk.color;
-      riskFormula.textContent = `K${risk.likelihood} x I${risk.impact}`;
-      return risk;
-    }
-
-    function buildLegacyMessage(values, risk) {
-      return [
-        `Tajuk isu: ${values.finding_title}`,
-        `Institusi: ${values.institution_name}`,
-        `PTJ / Unit: ${values.org_unit}`,
-        `Kitaran audit: ${values.audit_cycle}`,
-        `Kategori risiko: ${values.risk_category}`,
-        `Kemungkinan: ${risk.likelihood}`,
-        `Kesan: ${risk.impact}`,
-        `Skor risiko: ${risk.score}`,
-        `Tahap risiko: ${risk.level}`,
-        "",
-        "Huraian isu audit:",
-        values.message,
-        "",
-        "Punca utama:",
-        values.root_cause,
-        "",
-        "Kesan / implikasi:",
-        values.impact_description,
-        "",
-        "Syor audit / tindakan dicadangkan:",
-        values.recommendation
-      ].join("\n");
-    }
-
-    ["likelihood", "impact"].forEach((field) => {
-      form[field].addEventListener("change", updateRiskPreview);
-    });
-
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const values = Object.fromEntries(new FormData(form));
-      const risk = updateRiskPreview();
-      const payload = {
-        ...values,
-        likelihood: risk.likelihood,
-        impact: risk.impact,
-        risk_score: risk.score,
-        risk_level: risk.level,
-        message: buildLegacyMessage(values, risk)
-      };
-      const data = {
-        ...buildMutationRequest("findings.create.legacy", localStorage.getItem(STORAGE_KEYS.token), payload, () => crypto.randomUUID()),
-        ...payload
-      };
-      msg.textContent = "";
-      setLoading(true);
-
-      try {
-        await postData(data);
-        msg.textContent = "Penilaian dihantar. Sedang mengesahkan simpanan...";
-        const receipt = await pollMutationReceipt({
-          url: URL,
-          token: data.token,
-          requestId: data.request_id
-        });
-
-        if (receipt.status !== "success") {
-          msg.textContent = receipt.error;
-          showToast("Belum disahkan", receipt.error, "info");
-          setLoading(false);
-          return;
-        }
-
-        msg.textContent = "Terima kasih! Penilaian anda telah dihantar.";
-        showToast("Berjaya", msg.textContent, "success");
-        form.reset();
-        updateRiskPreview();
-        setLoading(false);
-      } catch (error) {
-        msg.textContent = "Penilaian tidak dapat dihantar. Sila cuba lagi.";
-        showToast("Ralat", msg.textContent, "error");
-        setLoading(false);
-      }
-    });
-
-    setupSidebar();
-    updateRiskPreview();
-  </script>
+  <script type="module" src="./assets/js/pages/form-page.js"></script>
 </body>
 </html>
