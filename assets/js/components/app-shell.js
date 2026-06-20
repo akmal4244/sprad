@@ -1,7 +1,7 @@
 /*
  * File Path: assets/js/components/app-shell.js
- * File Version: SPRAD v2.8-production | malay-localization.1
- * Update Info: 2026-06-20 - Seragamkan teks UI kepada Bahasa Melayu.
+ * File Version: SPRAD v2.8-production | menu-focus.1
+ * Update Info: 2026-06-20 - Susun sidebar kepada menu penting bersection gaya UjianMe.
  */
 import { STORAGE_KEYS } from "../config.js";
 import { revokeSession } from "../core/api.js";
@@ -129,9 +129,23 @@ export function setupSidebar(currentRoute, session = getSessionContext()) {
 }
 
 function standardSidebarNav(role) {
-  return getVisibleNavLinks(role)
-    .map(({ route, icon, label }) => `<a href="${route}" data-nav-route="${route}" class="menu-item"><i class="fa-solid ${icon} w-4"></i>${label}</a>`)
-    .join("");
+  const links = getVisibleNavLinks(role);
+  const adminRoutes = new Set(["users", "settings"]);
+  const primaryLinks = links.filter(link => !adminRoutes.has(link.route));
+  const adminLinks = links.filter(link => adminRoutes.has(link.route));
+  return [
+    navSection("Menu utama", primaryLinks),
+    navSection("Pentadbir", adminLinks)
+  ].filter(Boolean).join("");
+}
+
+function navSection(title, links) {
+  if (!links.length) return "";
+  return `<div class="menu-section">${title}</div>${links.map(navLink).join("")}`;
+}
+
+function navLink({ route, icon, label }) {
+  return `<a href="${route}" data-nav-route="${route}" class="menu-item"><i class="fa-solid ${icon} w-4"></i>${label}</a>`;
 }
 
 export function statusBadge(status) {

@@ -1,7 +1,7 @@
 /*
  * File Path: assets/js/pages/dashboard-page.js
- * File Version: SPRAD v2.8-production | qa-fix.1
- * Update Info: 2026-06-20 - Pulihkan identifier teknikal dashboard selepas lokalisasi Bahasa Melayu.
+ * File Version: SPRAD v2.8-production | menu-focus.1
+ * Update Info: 2026-06-20 - Ringkaskan fallback sidebar dashboard kepada menu penting.
  */
 import { STORAGE_KEYS } from "../config.js";
 import {
@@ -146,14 +146,9 @@ function navLinks() {
     ["dashboard", "fa-chart-line", "Papan Pemuka"],
     ["form", "fa-clipboard-list", "Penilaian risiko"],
     ["ai-intake", "fa-wand-magic-sparkles", "Input AI"],
-    ["audit-cycles", "fa-calendar-days", "Kitaran audit"],
-    ["audits", "fa-file-signature", "Audit"],
     ["findings", "fa-triangle-exclamation", "Penemuan"],
     ["corrective-actions", "fa-list-check", "Tindakan"],
     ["reports", "fa-print", "Laporan"],
-    ["audit-logs", "fa-shield-halved", "Log audit"],
-    ["institutions", "fa-building-columns", "Institusi"],
-    ["org-units", "fa-sitemap", "PTJ / Unit"],
     ["users", "fa-users-gear", "Pengguna"],
     ["settings", "fa-sliders", "Tetapan"]
   ].map(([route, icon, label]) => `<a href="${route}" data-nav-route="${route}" class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500"><i class="fa-solid ${icon} w-4"></i>${label}</a>`).join("");

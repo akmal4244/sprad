@@ -1,7 +1,7 @@
 /*
  * File Path: tests/permissions.test.mjs
- * File Version: SPRAD v2.8-production | metadata-header.1
- * Update Info: 2026-06-20 - Tambah metadata header untuk monitor path, versi dan info update.
+ * File Version: SPRAD v2.8-production | menu-focus.1
+ * Update Info: 2026-06-20 - Kemas kini kontrak sidebar kepada menu penting sahaja.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -72,10 +72,17 @@ test("filters sidebar navigation by role permissions", () => {
   assert.deepEqual(viewerRoutes, ["dashboard", "reports"]);
 
   const adminRoutes = getVisibleNavLinks("institution_admin").map(link => link.route);
-  assert.equal(adminRoutes.includes("form"), true);
-  assert.equal(adminRoutes.includes("ai-intake"), true);
-  assert.equal(adminRoutes.includes("users"), true);
-  assert.equal(adminRoutes.includes("settings"), true);
-  assert.equal(adminRoutes.includes("system-health"), true);
+  assert.deepEqual(adminRoutes, [
+    "dashboard",
+    "form",
+    "ai-intake",
+    "findings",
+    "corrective-actions",
+    "reports",
+    "users",
+    "settings"
+  ]);
+  assert.equal(adminRoutes.includes("system-health"), false);
   assert.equal(adminRoutes.includes("institutions"), false);
+  assert.equal(adminRoutes.includes("org-units"), false);
 });

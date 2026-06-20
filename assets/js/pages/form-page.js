@@ -1,7 +1,7 @@
 /*
  * File Path: assets/js/pages/form-page.js
- * File Version: SPRAD v2.8-production | metadata-header.1
- * Update Info: 2026-06-20 - Tambah metadata header untuk monitor path, versi dan info update.
+ * File Version: SPRAD v2.8-production | menu-focus.1
+ * Update Info: 2026-06-20 - Ringkaskan sidebar borang kepada menu penting gaya UjianMe.
  */
 import { getApiUrl, STORAGE_KEYS } from "../config.js";
 import { revokeSession } from "../core/api.js";
@@ -383,13 +383,29 @@ function setupSidebar() {
 
   const navContainer = document.querySelector("aside .mt-4.space-y-2");
   if (!navContainer) return;
-  navContainer.innerHTML = getVisibleNavLinks(role)
-    .map(({ route, icon, label }) => {
-      const active = route === "form";
-      const className = active ? "menu-item menu-active" : "menu-item";
-      return `<a href="${route}" data-nav-route="${route}" class="${className}"><i class="fa-solid ${icon} w-4"></i>${label}</a>`;
-    })
-    .join("");
+  navContainer.innerHTML = renderSidebarNav(role);
+}
+
+function renderSidebarNav(role) {
+  const links = getVisibleNavLinks(role);
+  const adminRoutes = new Set(["users", "settings"]);
+  const primaryLinks = links.filter(link => !adminRoutes.has(link.route));
+  const adminLinks = links.filter(link => adminRoutes.has(link.route));
+  return [
+    navSection("Menu utama", primaryLinks),
+    navSection("Pentadbir", adminLinks)
+  ].filter(Boolean).join("");
+}
+
+function navSection(title, links) {
+  if (!links.length) return "";
+  return `<div class="menu-section">${title}</div>${links.map(renderNavLink).join("")}`;
+}
+
+function renderNavLink({ route, icon, label }) {
+  const active = route === "form";
+  const className = active ? "menu-item menu-active" : "menu-item";
+  return `<a href="${route}" data-nav-route="${route}" class="${className}"><i class="fa-solid ${icon} w-4"></i>${label}</a>`;
 }
 
 async function logoutToLogin() {

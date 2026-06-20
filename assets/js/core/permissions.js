@@ -1,7 +1,7 @@
 /*
  * File Path: assets/js/core/permissions.js
- * File Version: SPRAD v2.8-production | malay-localization.1
- * Update Info: 2026-06-20 - Seragamkan teks UI kepada Bahasa Melayu.
+ * File Version: SPRAD v2.8-production | menu-focus.1
+ * Update Info: 2026-06-20 - Ringkaskan sidebar kepada menu penting mengikut layout UjianMe.
  */
 export const LEGACY_ROLE_MAP = Object.freeze({
   pentadbir: "institution_admin",
@@ -57,17 +57,11 @@ export const NAV_LINKS = Object.freeze([
   { route: "dashboard", icon: "fa-chart-line", label: "Papan Pemuka", permissions: ["reports.view"] },
   { route: "form", icon: "fa-clipboard-list", label: "Penilaian risiko", permissions: ["findings.create", "findings.manage"] },
   { route: "ai-intake", icon: "fa-wand-magic-sparkles", label: "Input AI", permissions: ["findings.create", "findings.manage"] },
-  { route: "audit-cycles", icon: "fa-calendar-days", label: "Kitaran audit", permissions: ["audit.manage"] },
-  { route: "audits", icon: "fa-file-signature", label: "Audit", permissions: ["audit.manage"] },
   { route: "findings", icon: "fa-triangle-exclamation", label: "Penemuan", permissions: ["findings.create", "findings.review", "findings.manage"] },
   { route: "corrective-actions", icon: "fa-list-check", label: "Tindakan", permissions: ["findings.create", "findings.review", "actions.verify"] },
   { route: "reports", icon: "fa-print", label: "Laporan", permissions: ["reports.view"] },
-  { route: "audit-logs", icon: "fa-shield-halved", label: "Log audit", permissions: ["findings.review", "users.manage"] },
-  { route: "institutions", icon: "fa-building-columns", label: "Institusi", permissions: ["institutions.manage"] },
-  { route: "org-units", icon: "fa-sitemap", label: "PTJ / Unit", permissions: ["masters.manage"] },
   { route: "users", icon: "fa-users-gear", label: "Pengguna", permissions: ["users.manage"] },
-  { route: "settings", icon: "fa-sliders", label: "Tetapan", permissions: ["masters.manage"] },
-  { route: "system-health", icon: "fa-heart-pulse", label: "Status sistem", permissions: ["users.manage"] }
+  { route: "settings", icon: "fa-sliders", label: "Tetapan", permissions: ["masters.manage"] }
 ]);
 
 export function normalizeRole(role) {

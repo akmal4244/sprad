@@ -1,7 +1,7 @@
 /*
  * File Path: assets/js/pages/reports-page.js
- * File Version: SPRAD v2.8-production | malay-localization.1
- * Update Info: 2026-06-20 - Seragamkan teks UI kepada Bahasa Melayu.
+ * File Version: SPRAD v2.8-production | menu-focus.1
+ * Update Info: 2026-06-20 - Ringkaskan fallback sidebar laporan kepada menu penting.
  */
 import { STORAGE_KEYS } from "../config.js";
 import {
@@ -177,6 +177,6 @@ function ensureShell() {
 
 function sidebar() {
   return `<aside class="sprad-sidebar self-start lg:sticky lg:top-16"><div class="flex items-center justify-between gap-3"><p class="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Ruang kerja</p><span id="sidebarRole" class="rounded-full bg-blue-50 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide text-blue-700">SPRAD</span></div><div class="mt-4 space-y-2">${[
-    ["dashboard", "fa-chart-line", "Papan Pemuka"], ["form", "fa-clipboard-list", "Penilaian risiko"], ["ai-intake", "fa-wand-magic-sparkles", "Input AI"], ["audit-cycles", "fa-calendar-days", "Kitaran audit"], ["audits", "fa-file-signature", "Audit"], ["findings", "fa-triangle-exclamation", "Penemuan"], ["corrective-actions", "fa-list-check", "Tindakan"], ["reports", "fa-print", "Laporan"], ["audit-logs", "fa-shield-halved", "Log audit"], ["institutions", "fa-building-columns", "Institusi"], ["org-units", "fa-sitemap", "PTJ / Unit"], ["users", "fa-users-gear", "Pengguna"], ["settings", "fa-sliders", "Tetapan"]
+    ["dashboard", "fa-chart-line", "Papan Pemuka"], ["form", "fa-clipboard-list", "Penilaian risiko"], ["ai-intake", "fa-wand-magic-sparkles", "Input AI"], ["findings", "fa-triangle-exclamation", "Penemuan"], ["corrective-actions", "fa-list-check", "Tindakan"], ["reports", "fa-print", "Laporan"], ["users", "fa-users-gear", "Pengguna"], ["settings", "fa-sliders", "Tetapan"]
   ].map(([route, icon, label]) => `<a href="${route}" data-nav-route="${route}" class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500"><i class="fa-solid ${icon} w-4"></i>${label}</a>`).join("")}</div></aside>`;
 }
