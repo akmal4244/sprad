@@ -1,7 +1,7 @@
 /*
  * File Path: tests/crud-contract.test.mjs
- * File Version: SPRAD v2.8-production | metadata-header.1
- * Update Info: 2026-06-20 - Tambah metadata header untuk monitor path, versi dan info update.
+ * File Version: SPRAD v2.8-production | dummy-seed.1
+ * Update Info: 2026-06-20 - Tambah kontrak 5 data dummy setiap fungsi/table Apps Script.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -230,6 +230,14 @@ test("SPRAD Fasa 7 AI intake is wired from page to Apps Script", () => {
   assert.match(codeGs, /SHEET_AI_DRAFTS/, "Apps Script must define AI draft sheet");
   assert.match(codeGs, /function mutateAiIntake_/, "Apps Script must implement AI intake mutation");
   assert.match(codeGs, /function listAiDrafts_/, "Apps Script must expose AI draft list");
+});
+
+test("Apps Script setup seeds five dummy records for every demo table", () => {
+  assert.match(codeGs, /const DUMMY_RECORDS_PER_TABLE = 5;/, "Apps Script must centralize dummy target at 5 records");
+  assert.match(codeGs, /dummy_v2_records_per_table:\s*DUMMY_RECORDS_PER_TABLE/, "settings must expose the dummy target");
+  assert.match(codeGs, /Array\.from\(\{ length: DUMMY_RECORDS_PER_TABLE \}/, "V2 seed arrays must use the shared target");
+  assert.doesNotMatch(codeGs, /Array\.from\(\{ length: 10 \}/, "V2 seed arrays must not hardcode 10 dummy records");
+  assert.match(codeGs, /function resetDummyDataToFive\(\)/, "Apps Script should provide an optional helper to reset demo rows to five");
 });
 
 function quotedAction(action) {

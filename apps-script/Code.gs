@@ -1,7 +1,7 @@
 /*
  * File Path: apps-script/Code.gs
- * File Version: SPRAD v2.8-production | metadata-header.1
- * Update Info: 2026-06-20 - Tambah metadata header untuk monitor path, versi dan info update.
+ * File Version: SPRAD v2.8-production | dummy-seed.1
+ * Update Info: 2026-06-20 - Tetapkan 5 data dummy setiap fungsi/table dan tambah helper reset dummy.
  */
 // =========== APP CONFIG ===========
 const APP_NAME = "Sistem Penilaian Risiko Audit Dalam (SPRAD)";
@@ -42,6 +42,7 @@ const SETUP_CACHE_KEY = "sprad_schema_ready_v2_8";
 const SETUP_CACHE_SECONDS = 300;
 const LOGIN_ATTEMPT_LIMIT = 8;
 const LOGIN_ATTEMPT_WINDOW_SECONDS = 600;
+const DUMMY_RECORDS_PER_TABLE = 5;
 
 // SPRAD V2: public registration must never create administrator accounts.
 const ALLOW_PUBLIC_ADMIN_REGISTER = false;
@@ -199,6 +200,18 @@ function setup() {
   clearSetupCache_();
   ensureSheets_();
   return `${APP_NAME} setup complete. Legacy sheets and SPRAD V2 foundation sheets are ready.`;
+}
+
+// Run this manually if old demo rows already exist and you want exactly 5 dummy
+// records per SPRAD demo table again.
+function resetDummyDataToFive() {
+  clearSetupCache_();
+  ensureBaseSheets_();
+  ensureV2Sheets_();
+  ensureCompatibilityColumns_();
+  clearDemoRowsForDummyReset_();
+  ensureSheets_();
+  return `${APP_NAME} dummy reset complete. ${DUMMY_RECORDS_PER_TABLE} dummy records per demo table are ready.`;
 }
 
 // =========== ACTIONS ===========
@@ -3042,11 +3055,11 @@ function ensureSettings_() {
     default_admin_password: DEFAULT_USERS[0].password,
     default_user_username: DEFAULT_USERS[1].username,
     default_user_password: DEFAULT_USERS[1].password,
-    dummy_contacts_target: DUMMY_CONTACTS.length,
-    dummy_users_target: DUMMY_USERS.length,
-    dummy_sessions_target: DUMMY_SESSIONS.length,
-    dummy_settings_target: DUMMY_SETTINGS.length,
-    dummy_v2_records_per_table: 10,
+    dummy_contacts_target: Math.min(DUMMY_CONTACTS.length, DUMMY_RECORDS_PER_TABLE),
+    dummy_users_target: Math.min(DUMMY_USERS.length, DUMMY_RECORDS_PER_TABLE),
+    dummy_sessions_target: Math.min(DUMMY_SESSIONS.length, DUMMY_RECORDS_PER_TABLE),
+    dummy_settings_target: Math.min(DUMMY_SETTINGS.length, DUMMY_RECORDS_PER_TABLE),
+    dummy_v2_records_per_table: DUMMY_RECORDS_PER_TABLE,
     completed_phases: "0,1,2,3,4,5,6,7",
     backup_trigger_handler: "runDailyBackup",
     workflow_state_machine: "enabled",
@@ -3063,8 +3076,17 @@ function ensureSettings_() {
   };
 
   Object.entries(settings).forEach(upsert);
-  setSettingValue_(sheet, headers, "schema_version", "2.8-production", "system", "global", "system");
-  setSettingValue_(sheet, headers, "completed_phases", "0,1,2,3,4,5,6,7", "system", "global", "system");
+  [
+    "schema_version",
+    "completed_phases",
+    "dummy_contacts_target",
+    "dummy_users_target",
+    "dummy_sessions_target",
+    "dummy_settings_target",
+    "dummy_v2_records_per_table"
+  ].forEach(key => {
+    setSettingValue_(sheet, headers, key, settings[key], "system", "global", "system");
+  });
 }
 
 function setSettingIfMissing_(sheet, headers, key, value, scopeType, scopeId, updatedBy) {
@@ -3103,7 +3125,7 @@ function seedDummySettings_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SETTINGS);
   const headers = getSheetHeaders_(sheet);
 
-  DUMMY_SETTINGS.forEach(([key, value]) => {
+  DUMMY_SETTINGS.slice(0, DUMMY_RECORDS_PER_TABLE).forEach(([key, value]) => {
     setSettingIfMissing_(sheet, headers, key, value, "system", "global", "system");
   });
 }
@@ -3119,7 +3141,7 @@ function seedV2Foundation_() {
 function seedDummyV2Data_() {
   const now = Date.now();
   const nowIso = new Date(now).toISOString();
-  const demoInstitutionRows = Array.from({ length: 10 }, (_, index) => {
+  const demoInstitutionRows = Array.from({ length: DUMMY_RECORDS_PER_TABLE }, (_, index) => {
     const number = String(index + 1).padStart(2, "0");
     const id = `inst_demo_${number}`;
     return [
@@ -3142,24 +3164,25 @@ function seedDummyV2Data_() {
   });
   appendRowsIfMissing_(SHEET_INSTITUTIONS, 0, demoInstitutionRows, HEADERS.institutions);
 
-  const units = ["Fakulti Teknologi", "Pusat Kesihatan", "Bendahari", "Perpustakaan", "Pejabat Pendaftar", "Unit Kenderaan", "Pusat ICT", "Unit Perolehan", "Unit Keselamatan", "Audit Dalam"];
+  const units = ["Fakulti Teknologi", "Pusat Kesihatan", "Bendahari", "Perpustakaan", "Pejabat Pendaftar", "Unit Kenderaan", "Pusat ICT", "Unit Perolehan", "Unit Keselamatan", "Audit Dalam"]
+    .slice(0, DUMMY_RECORDS_PER_TABLE);
   appendRowsIfMissing_(SHEET_ORG_UNITS, 0, units.map((name, index) => {
     const number = String(index + 1).padStart(2, "0");
     return [`unit_demo_${number}`, DEFAULT_INSTITUTION_ID, `PTJ${number}`, name, index < 4 ? "Pusat" : "Unit", "", "active", nowIso, "system", nowIso, "system", "", ""];
   }), HEADERS.org_units);
 
-  appendRowsIfMissing_(SHEET_AUDIT_CYCLES, 0, Array.from({ length: 10 }, (_, index) => {
+  appendRowsIfMissing_(SHEET_AUDIT_CYCLES, 0, Array.from({ length: DUMMY_RECORDS_PER_TABLE }, (_, index) => {
     const year = 2017 + index;
     const number = String(index + 1).padStart(2, "0");
-    return [`cycle_demo_${number}`, DEFAULT_INSTITUTION_ID, `Audit Dalam ${year}`, year, `${year}-01-01`, `${year}-12-31`, index === 9 ? "open" : "closed", `SPRAD/${year}`, "", "", nowIso, "system", nowIso, "system", "", ""];
+    return [`cycle_demo_${number}`, DEFAULT_INSTITUTION_ID, `Audit Dalam ${year}`, year, `${year}-01-01`, `${year}-12-31`, index === DUMMY_RECORDS_PER_TABLE - 1 ? "open" : "closed", `SPRAD/${year}`, "", "", nowIso, "system", nowIso, "system", "", ""];
   }), HEADERS.audit_cycles);
 
-  appendRowsIfMissing_(SHEET_AUDITS, 0, Array.from({ length: 10 }, (_, index) => {
+  appendRowsIfMissing_(SHEET_AUDITS, 0, Array.from({ length: DUMMY_RECORDS_PER_TABLE }, (_, index) => {
     const number = String(index + 1).padStart(2, "0");
     return [`audit_demo_${number}`, DEFAULT_INSTITUTION_ID, `cycle_demo_${number}`, `AUD-${number}`, `Audit Pengurusan ${units[index]}`, `Skop semakan proses ${units[index]}.`, "Menilai kawalan dalaman dan pematuhan.", "", "2026-01-01", "2026-12-31", "open", nowIso, "system", nowIso, "system", "", ""];
   }), HEADERS.audits);
 
-  const findingRows = Array.from({ length: 10 }, (_, index) => {
+  const findingRows = Array.from({ length: DUMMY_RECORDS_PER_TABLE }, (_, index) => {
     const number = String(index + 1).padStart(2, "0");
     const likelihood = (index % 4) + 1;
     const impact = ((index + 1) % 4) + 1;
@@ -3184,7 +3207,7 @@ function seedDummyV2Data_() {
       risk.levelId,
       risk.levelId,
       "",
-      index < 3 ? "approved" : (index < 6 ? "submitted" : "draft"),
+      index < 2 ? "approved" : (index < 4 ? "submitted" : "draft"),
       "",
       new Date(now - (index + 1) * 86400000).toISOString(),
       "system",
@@ -3194,8 +3217,8 @@ function seedDummyV2Data_() {
       "",
       "",
       "",
-      index < 3 ? nowIso : "",
-      index < 3 ? "system" : "",
+      index < 2 ? nowIso : "",
+      index < 2 ? "system" : "",
       "",
       "",
       1
@@ -3203,35 +3226,35 @@ function seedDummyV2Data_() {
   });
   appendRowsIfMissing_(SHEET_FINDINGS, 0, findingRows, HEADERS.findings);
 
-  appendRowsIfMissing_(SHEET_FINDING_UNITS, 0, Array.from({ length: 10 }, (_, index) => {
+  appendRowsIfMissing_(SHEET_FINDING_UNITS, 0, Array.from({ length: DUMMY_RECORDS_PER_TABLE }, (_, index) => {
     const number = String(index + 1).padStart(2, "0");
     return [`finding_unit_demo_${number}`, DEFAULT_INSTITUTION_ID, `finding_demo_${number}`, `unit_demo_${number}`, nowIso, "system"];
   }), HEADERS.finding_units);
 
-  appendRowsIfMissing_(SHEET_CORRECTIVE_ACTIONS, 0, Array.from({ length: 10 }, (_, index) => {
+  appendRowsIfMissing_(SHEET_CORRECTIVE_ACTIONS, 0, Array.from({ length: DUMMY_RECORDS_PER_TABLE }, (_, index) => {
     const number = String(index + 1).padStart(2, "0");
     const target = new Date(now + (index - 3) * 86400000).toISOString().slice(0, 10);
-    const status = index < 2 ? "awaiting_verification" : (index < 5 ? "in_progress" : "open");
-    return [`action_demo_${number}`, DEFAULT_INSTITUTION_ID, `finding_demo_${number}`, `Tindakan pembetulan demo ${number}`, "", `Pemilik ${number}`, `unit_demo_${number}`, target, status, index < 5 ? 60 : 10, "Catatan kemajuan demo.", "", index < 2 ? nowIso : "", "", "", "", nowIso, "system", nowIso, "system", "", "", 1];
+    const status = index < 1 ? "awaiting_verification" : (index < 3 ? "in_progress" : "open");
+    return [`action_demo_${number}`, DEFAULT_INSTITUTION_ID, `finding_demo_${number}`, `Tindakan pembetulan demo ${number}`, "", `Pemilik ${number}`, `unit_demo_${number}`, target, status, index < 3 ? 60 : 10, "Catatan kemajuan demo.", "", index < 1 ? nowIso : "", "", "", "", nowIso, "system", nowIso, "system", "", "", 1];
   }), HEADERS.corrective_actions);
 
-  appendRowsIfMissing_(SHEET_ATTACHMENTS, 0, Array.from({ length: 10 }, (_, index) => {
+  appendRowsIfMissing_(SHEET_ATTACHMENTS, 0, Array.from({ length: DUMMY_RECORDS_PER_TABLE }, (_, index) => {
     const number = String(index + 1).padStart(2, "0");
     return [`attach_demo_${number}`, DEFAULT_INSTITUTION_ID, "finding", `finding_demo_${number}`, `drive_file_demo_${number}`, `bukti-demo-${number}.pdf`, "application/pdf", `https://drive.google.com/demo/bukti-${number}`, nowIso, "system", "", ""];
   }), HEADERS.attachments);
 
-  appendRowsIfMissing_(SHEET_AUDIT_LOGS, 0, Array.from({ length: 10 }, (_, index) => {
+  appendRowsIfMissing_(SHEET_AUDIT_LOGS, 0, Array.from({ length: DUMMY_RECORDS_PER_TABLE }, (_, index) => {
     const number = String(index + 1).padStart(2, "0");
     return [`log_demo_${number}`, DEFAULT_INSTITUTION_ID, "system", "seed.demo", "finding", `finding_demo_${number}`, `seed-request-${number}`, "", JSON.stringify({ seeded: true, index: index + 1 }), nowIso];
   }), HEADERS.audit_logs);
 
-  appendRowsIfMissing_(SHEET_AI_JOBS, 0, Array.from({ length: 10 }, (_, index) => {
+  appendRowsIfMissing_(SHEET_AI_JOBS, 0, Array.from({ length: DUMMY_RECORDS_PER_TABLE }, (_, index) => {
     const number = String(index + 1).padStart(2, "0");
-    const status = index < 8 ? "completed" : "failed";
+    const status = index < DUMMY_RECORDS_PER_TABLE - 1 ? "completed" : "failed";
     return [`ai_job_demo_${number}`, DEFAULT_INSTITUTION_ID, `drive_ai_demo_${number}`, `laporan-audit-demo-${number}.pdf`, "application/pdf", 204800 + index, `Laporan Audit Demo ${number}`, status, "gemini-2.5-flash", status === "completed" ? 1 : 0, status === "completed" ? 82 - index : 0, status === "completed" ? "Draft demo dijana untuk semakan auditor." : "Demo ralat konfigurasi Gemini.", status === "failed" ? "GEMINI_API_KEY belum ditetapkan." : "", nowIso, "system", nowIso, "system", "", ""];
   }), HEADERS.ai_jobs);
 
-  appendRowsIfMissing_(SHEET_AI_DRAFTS, 0, Array.from({ length: 10 }, (_, index) => {
+  appendRowsIfMissing_(SHEET_AI_DRAFTS, 0, Array.from({ length: DUMMY_RECORDS_PER_TABLE }, (_, index) => {
     const number = String(index + 1).padStart(2, "0");
     const likelihood = (index % 4) + 1;
     const impact = ((index + 2) % 4) + 1;
@@ -3241,7 +3264,7 @@ function seedDummyV2Data_() {
     return [`ai_draft_demo_${number}`, DEFAULT_INSTITUTION_ID, `ai_job_demo_${number}`, V2_RISK_CATEGORIES[index % V2_RISK_CATEGORIES.length][0], `Draft AI isu audit ${number}`, `Huraian draft AI demo ${number} berdasarkan laporan audit institusi.`, "Kawalan proses tidak dilaksanakan secara konsisten.", "Risiko ketidakpatuhan dan kelewatan tindakan pembetulan.", `https://drive.google.com/demo/ai-evidence-${number}`, "Laksanakan semakan berkala dan bukti tindakan yang jelas.", likelihood, impact, risk.score, risk.levelId, confidence, flags.length ? "perlu_semakan" : "lengkap", Math.round(confidence * 100), JSON.stringify(flags), `${index + 1}`, index < 2 ? "promoted" : "draft", index < 2 ? `finding_demo_${number}` : "", nowIso, "system", nowIso, "system", "", ""];
   }), HEADERS.ai_drafts);
 
-  appendRowsIfMissing_(SHEET_MUTATION_RECEIPTS, 0, Array.from({ length: 10 }, (_, index) => {
+  appendRowsIfMissing_(SHEET_MUTATION_RECEIPTS, 0, Array.from({ length: DUMMY_RECORDS_PER_TABLE }, (_, index) => {
     const number = String(index + 1).padStart(2, "0");
     return [`receipt_demo_${number}`, "system", DEFAULT_INSTITUTION_ID, "seed.demo", "finding", `finding_demo_${number}`, "success", "", "", nowIso, nowIso];
   }), HEADERS.mutation_receipts);
@@ -3374,7 +3397,7 @@ function cloneRiskCategoriesForInstitution_(institutionId, actorId) {
 }
 
 function seedDummyUsers_() {
-  DUMMY_USERS.forEach(user => ensureUser_(user));
+  DUMMY_USERS.slice(0, DUMMY_RECORDS_PER_TABLE).forEach(user => ensureUser_(user));
 }
 
 function ensureUser_(user) {
@@ -3411,7 +3434,7 @@ function seedDummySessions_() {
   const now = Date.now();
   const rowsToAdd = [];
 
-  DUMMY_SESSIONS.forEach((session, index) => {
+  DUMMY_SESSIONS.slice(0, DUMMY_RECORDS_PER_TABLE).forEach((session, index) => {
     if (existingTokens.has(session.token)) return;
 
     const userId = findUserIdByUsername_(session.username);
@@ -3432,11 +3455,11 @@ function seedDummySessions_() {
 function seedDummyContacts_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CONTACTS);
   const existingCount = Math.max(0, sheet.getLastRow() - 1);
-  if (existingCount >= DUMMY_CONTACTS.length) return;
+  if (existingCount >= DUMMY_RECORDS_PER_TABLE) return;
 
   const now = Date.now();
   const rowsToAdd = DUMMY_CONTACTS
-    .slice(existingCount)
+    .slice(existingCount, DUMMY_RECORDS_PER_TABLE)
     .map((contact, index) => [
       now + index,
       contact[0],
@@ -3476,6 +3499,51 @@ function fixMisalignedContactRows_() {
   });
 
   if (changed) range.setValues(rows);
+}
+
+function clearDemoRowsForDummyReset_() {
+  const demoEmailSet = new Set(DUMMY_CONTACTS.map(contact => clean_(contact[1]).toLowerCase()));
+  const demoUsernameSet = new Set(DUMMY_USERS.map(user => clean_(user.username).toLowerCase()));
+  const demoTokenSet = new Set(DUMMY_SESSIONS.map(session => clean_(session.token)));
+  const demoSettingSet = new Set(DUMMY_SETTINGS.map(setting => clean_(setting[0])));
+
+  removeRowsWhere_(SHEET_CONTACTS, row => demoEmailSet.has(clean_(row[2]).toLowerCase()));
+  removeRowsWhere_(SHEET_USERS, row => demoUsernameSet.has(clean_(row[1]).toLowerCase()));
+  removeRowsWhere_(SHEET_SESSIONS, row => demoTokenSet.has(clean_(row[0])));
+  removeRowsWhere_(SHEET_SETTINGS, row => demoSettingSet.has(clean_(row[0])));
+
+  [
+    [SHEET_INSTITUTIONS, 0, ["inst_demo_"]],
+    [SHEET_ORG_UNITS, 0, ["unit_demo_"]],
+    [SHEET_AUDIT_CYCLES, 0, ["cycle_demo_"]],
+    [SHEET_AUDITS, 0, ["audit_demo_"]],
+    [SHEET_FINDINGS, 0, ["finding_demo_"]],
+    [SHEET_FINDING_UNITS, 0, ["finding_unit_demo_"]],
+    [SHEET_CORRECTIVE_ACTIONS, 0, ["action_demo_"]],
+    [SHEET_ATTACHMENTS, 0, ["attach_demo_"]],
+    [SHEET_AUDIT_LOGS, 0, ["log_demo_"]],
+    [SHEET_AI_JOBS, 0, ["ai_job_demo_"]],
+    [SHEET_AI_DRAFTS, 0, ["ai_draft_demo_"]],
+    [SHEET_MUTATION_RECEIPTS, 0, ["receipt_demo_"]]
+  ].forEach(([sheetName, keyIndex, prefixes]) => {
+    removeRowsWhere_(sheetName, row => prefixes.some(prefix => clean_(row[keyIndex]).indexOf(prefix) === 0));
+  });
+}
+
+function removeRowsWhere_(sheetName, predicate) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  if (!sheet) return;
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+
+  const rows = sheet
+    .getRange(2, 1, lastRow - 1, sheet.getLastColumn())
+    .getValues();
+
+  for (let index = rows.length - 1; index >= 0; index--) {
+    if (predicate(rows[index])) sheet.deleteRow(index + 2);
+  }
 }
 
 // =========== HELPERS ===========
