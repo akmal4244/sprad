@@ -9,14 +9,15 @@
 <body>
   <script>
     const cleanPath = window.location.pathname.replace(/\/$/, "");
-    const routeMatch = cleanPath.match(/^(.*)\/(login|register|form|view)$/);
+    const routeMatch = cleanPath.match(/^(.*)\/(login|register|form|view|institutions|org-units|users|settings)$/);
 
     if (routeMatch) {
       const [, basePath, route] = routeMatch;
       sessionStorage.setItem("spradCleanPath", cleanPath + window.location.search + window.location.hash);
       window.location.replace(`${basePath}/${route}.html${window.location.search}${window.location.hash}`);
     } else {
-      window.location.replace(cleanPath.includes("/sprad") ? "/sprad/" : "/");
+      const fallbackBase = cleanPath === "/sprad" || cleanPath.startsWith("/sprad/") ? "/sprad/" : "/";
+      window.location.replace(fallbackBase);
     }
   </script>
 </body>

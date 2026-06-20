@@ -31,7 +31,7 @@ const ROLE_REVIEWER = "reviewer";
 const ROLE_VIEWER = "viewer";
 const SESSION_DAYS = 7;
 const DEFAULT_INSTITUTION_ID = "inst_default";
-const SETUP_CACHE_KEY = "sprad_schema_ready_v2_1";
+const SETUP_CACHE_KEY = "sprad_schema_ready_v2_2";
 const SETUP_CACHE_SECONDS = 300;
 const LOGIN_ATTEMPT_LIMIT = 8;
 const LOGIN_ATTEMPT_WINDOW_SECONDS = 600;
@@ -160,7 +160,7 @@ function doGet(e) {
     // PUBLIC: no token required
     if (p.action === "config") return getConfig();
     if (p.action === "config.get") return getConfig();
-    if (p.action === "riskMatrix.get") return getRiskMatrix();
+    if (p.action === "riskMatrix.get" && !p.token) return getRiskMatrix();
     if (p.action === "login") return login(p);
     if (p.action === "register") return register(p);
 
@@ -169,6 +169,7 @@ function doGet(e) {
     if (!user) return json({ ok: false, error: "invalid token" });
 
     if (p.action === "getContacts") return getContacts(user);
+    if (p.action === "riskMatrix.get") return getRiskMatrix(user);
     if (p.action === "mutations.status") return getMutationStatus(p.requestId || p.request_id, user);
     const v2Response = routeV2Get_(p, user);
     if (v2Response) return v2Response;
@@ -194,7 +195,7 @@ function getConfig() {
     ok: true,
     data: {
       app_name: APP_NAME,
-      schema_version: "2.1-blueprint-foundation",
+      schema_version: "2.2-phase2-data-master",
       logo_url: LOGO_URL,
       favicon_url: FAVICON_URL,
       legacy_roles: [ROLE_ADMIN, ROLE_USER],
@@ -253,7 +254,7 @@ function saveFindingMutation_(body) {
     const repeatedReceipt = findMutationReceipt_(requestId);
     if (repeatedReceipt) return json({ ok: repeatedReceipt.status === "success", receipt: repeatedReceipt });
 
-    const risk = calculateRisk_(body.likelihood, body.impact);
+    const risk = calculateRisk_(body.likelihood, body.impact, user.institution_id);
     const now = new Date();
     const findingId = Utilities.getUuid();
     const categoryId = findRiskCategoryIdByName_(body.risk_category) || clean_(body.risk_category);
@@ -431,15 +432,20 @@ function login({ username, password }) {
     if (storedUsername.toLowerCase() !== username.toLowerCase()) continue;
     if (!passwordMatches_(password, storedPassword)) continue;
 
+    const userHeaders = getSheetHeaders_(usersSheet);
     const role = normalizeRole_(row[3], ROLE_ADMIN);
+    const v2RoleIndex = userHeaders.indexOf("v2_role");
+    const v2Role = normalizeV2Role_(v2RoleIndex === -1 ? role : row[v2RoleIndex] || role);
+    const legacyRole = normalizeLegacyRoleForClient_(v2Role);
 
     // Upgrade old plain-text passwords and missing roles without breaking login.
     if (storedPassword === password) {
       usersSheet.getRange(rowNumber, 3).setValue(hashPassword_(password));
     }
     if (!row[3]) {
-      usersSheet.getRange(rowNumber, 4).setValue(role);
+      usersSheet.getRange(rowNumber, 4).setValue(legacyRole);
     }
+    setExtraField_(usersSheet, rowNumber, "v2_role", v2Role);
 
     clearLoginAttempts_(username);
 
@@ -454,7 +460,7 @@ function login({ username, password }) {
       created_at: new Date(),
       token_hash: hashPassword_(token),
       institution_id: getUserInstitutionId_(userId),
-      role,
+      role: v2Role,
       last_seen_at: nowIso_(),
       revoked_at: ""
     };
@@ -464,8 +470,8 @@ function login({ username, password }) {
     return json({
       ok: true,
       token,
-      role,
-      v2_role: normalizeV2Role_(role),
+      role: legacyRole,
+      v2_role: v2Role,
       user_id: userId,
       institution_id: sessionRecord.institution_id,
       username: storedUsername,
@@ -668,10 +674,10 @@ function deleteContact(body) {
   }
 }
 
-function getRiskMatrix() {
+function getRiskMatrix(user) {
   return json({
     ok: true,
-    data: getRiskMatrixData_()
+    data: getRiskMatrixData_(user)
   });
 }
 
@@ -679,7 +685,7 @@ function getMutationStatus(requestId, user) {
   requestId = clean_(requestId);
   if (!requestId) return json({ ok: false, error: "missing requestId" });
 
-  const receipt = findMutationReceipt_(requestId);
+  const receipt = findMutationReceipt_(requestId, user.id);
   if (!receipt || receipt.user_id !== user.id) {
     return json({ ok: false, error: "receipt not found" });
   }
@@ -691,7 +697,7 @@ function routeV2Get_(p, user) {
   const action = clean_(p.action);
   if (action === "auth.me") return apiOk_({ user: publicUser_(user) });
   if (action === "auth.logout") return logoutSession_(p.token, user);
-  if (action === "institutions.list") return listInstitutions_(user);
+  if (action === "institutions.list") return listInstitutions_(user, p);
   if (action === "institutions.get") return getInstitution_(user, p.id || p.institution_id);
   if (action === "orgUnits.list") return listTenantRecords_(SHEET_ORG_UNITS, user, p);
   if (action === "users.list") return listUsers_(user, p);
@@ -715,6 +721,12 @@ function isV2MutationAction_(action) {
     "orgUnits.create",
     "orgUnits.update",
     "orgUnits.delete",
+    "orgUnits.restore",
+    "riskCategories.create",
+    "riskCategories.update",
+    "riskCategories.delete",
+    "riskCategories.restore",
+    "riskLevels.update",
     "auditCycles.create",
     "auditCycles.update",
     "auditCycles.finalize",
@@ -735,6 +747,7 @@ function isV2MutationAction_(action) {
     "users.create",
     "users.update",
     "users.deactivate",
+    "users.restore",
     "settings.update"
   ].indexOf(clean_(action)) !== -1;
 }
@@ -743,22 +756,9 @@ function handleV2Mutation_(body) {
   const action = clean_(body.action);
   const payload = body.payload && typeof body.payload === "object" ? body.payload : body;
   const requestId = clean_(body.request_id || body.requestId || payload.request_id || payload.requestId || Utilities.getUuid());
-  const existingReceipt = findMutationReceipt_(requestId);
-  if (existingReceipt) return json({ ok: existingReceipt.status === "success", receipt: existingReceipt });
 
   const user = validateToken(body.token);
   if (!user) {
-    writeMutationReceipt_({
-      requestId,
-      userId: "",
-      institutionId: DEFAULT_INSTITUTION_ID,
-      action,
-      entityType: mutationEntityType_(action),
-      entityId: clean_(payload.id),
-      status: "error",
-      errorCode: "INVALID_TOKEN",
-      errorMessage: "invalid token"
-    });
     return json({ ok: false, error: "invalid token", request_id: requestId });
   }
 
@@ -766,7 +766,7 @@ function handleV2Mutation_(body) {
   lock.waitLock(10000);
 
   try {
-    const repeatedReceipt = findMutationReceipt_(requestId);
+    const repeatedReceipt = findMutationReceipt_(requestId, user.id, action);
     if (repeatedReceipt) return json({ ok: repeatedReceipt.status === "success", receipt: repeatedReceipt });
 
     const result = performV2Mutation_(action, payload, user, requestId);
@@ -781,7 +781,7 @@ function handleV2Mutation_(body) {
       errorCode: "",
       errorMessage: ""
     });
-    return json({ ok: true, request_id: requestId, receipt: findMutationReceipt_(requestId), data: result.data || {} });
+    return json({ ok: true, request_id: requestId, receipt: findMutationReceipt_(requestId, user.id, action), data: result.data || {} });
   } catch (err) {
     writeMutationReceipt_({
       requestId,
@@ -803,6 +803,8 @@ function handleV2Mutation_(body) {
 function performV2Mutation_(action, payload, user, requestId) {
   if (action.indexOf("institutions.") === 0) return mutateInstitution_(action, payload, user, requestId);
   if (action.indexOf("orgUnits.") === 0) return mutateOrgUnit_(action, payload, user, requestId);
+  if (action.indexOf("riskCategories.") === 0) return mutateRiskCategory_(action, payload, user, requestId);
+  if (action.indexOf("riskLevels.") === 0) return mutateRiskLevel_(action, payload, user, requestId);
   if (action.indexOf("auditCycles.") === 0) return mutateAuditCycle_(action, payload, user, requestId);
   if (action.indexOf("audits.") === 0) return mutateAudit_(action, payload, user, requestId);
   if (action.indexOf("findings.") === 0) return mutateFinding_(action, payload, user, requestId);
@@ -815,6 +817,8 @@ function performV2Mutation_(action, payload, user, requestId) {
 function mutationEntityType_(action) {
   if (action.indexOf("institutions.") === 0) return "institution";
   if (action.indexOf("orgUnits.") === 0) return "org_unit";
+  if (action.indexOf("riskCategories.") === 0) return "risk_category";
+  if (action.indexOf("riskLevels.") === 0) return "risk_level";
   if (action.indexOf("auditCycles.") === 0) return "audit_cycle";
   if (action.indexOf("audits.") === 0) return "audit";
   if (action.indexOf("findings.") === 0) return "finding";
@@ -824,23 +828,26 @@ function mutationEntityType_(action) {
   return "record";
 }
 
-function listInstitutions_(user) {
+function listInstitutions_(user, p) {
+  const includeArchived = includeArchived_(p);
   const records = getSheetObjects_(SHEET_INSTITUTIONS)
-    .filter(record => !record.deleted_at)
-    .filter(record => isSuperAdmin_(user) || record.id === user.institution_id);
+    .filter(record => includeArchived || !isArchivedRecord_(record))
+    .filter(record => isSuperAdmin_(user) || record.id === user.institution_id)
+    .filter(record => !p.status || String(record.status || "") === String(p.status));
   return apiOk_({ institutions: records });
 }
 
 function getInstitution_(user, institutionId) {
   const record = getRecordById_(SHEET_INSTITUTIONS, institutionId || user.institution_id);
-  if (!record || record.deleted_at) return apiError_("NOT_FOUND", "Institusi tidak ditemui.");
+  if (!record || isArchivedRecord_(record)) return apiError_("NOT_FOUND", "Institusi tidak ditemui.");
   if (!canAccessInstitution_(user, record.id)) return apiError_("FORBIDDEN", "forbidden");
   return apiOk_({ institution: record });
 }
 
 function listTenantRecords_(sheetName, user, p) {
+  const includeArchived = includeArchived_(p);
   const records = getSheetObjects_(sheetName)
-    .filter(record => !record.deleted_at)
+    .filter(record => includeArchived || !isArchivedRecord_(record))
     .filter(record => tenantFilter_(record, user))
     .filter(record => !p.status || String(record.status || "") === String(p.status));
   return apiOk_({ records });
@@ -850,11 +857,13 @@ function listUsers_(user, p) {
   if (!roleCan_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN])) {
     return apiError_("FORBIDDEN", "forbidden");
   }
+  const includeArchived = includeArchived_(p);
   const records = getSheetObjects_(SHEET_USERS)
     .map(userRecordFromRowObject_)
-    .filter(record => !record.deactivated_at)
+    .filter(record => includeArchived || !isArchivedUserRecord_(record))
     .filter(record => tenantFilter_(record, user))
     .filter(record => !p.role || normalizeV2Role_(record.role) === normalizeV2Role_(p.role))
+    .filter(record => !p.status || String(record.status || "") === String(p.status))
     .map(sanitizeUserRecord_);
   return apiOk_({ users: records });
 }
@@ -937,7 +946,7 @@ function getReportDataset_(user, p) {
       institution,
       generated_at: nowIso_(),
       findings,
-      risk_matrix: getRiskMatrixData_(),
+      risk_matrix: getRiskMatrixData_(user),
       overall: getDashboardSummaryObject_(findings, actions, levels),
       categories: summarizeCategories_(findings, levels),
       actions
@@ -968,6 +977,7 @@ function mutateInstitution_(action, payload, user, requestId) {
       deleted_by: ""
     };
     appendRecord_(SHEET_INSTITUTIONS, record);
+    cloneDefaultConfigForInstitution_(id, user.id);
     auditChange_(user, "institutions.create", "institution", id, requestId, "", record);
     return mutationResult_("institution", id, record);
   }
@@ -1030,8 +1040,73 @@ function mutateOrgUnit_(action, payload, user, requestId) {
   return mutateTenantSoftRecord_(action, payload, user, requestId, sheetName, "org_unit", {
     code: "Kod PTJ",
     name: "Nama PTJ",
-    unit_type: "Unit"
+    unit_type: "Unit",
+    parent_unit_id: "Parent unit",
+    status: "active"
   });
+}
+
+function mutateRiskCategory_(action, payload, user, requestId) {
+  requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN]);
+  const sheetName = SHEET_RISK_CATEGORIES;
+  if (action === "riskCategories.create") {
+    const now = nowIso_();
+    const institutionId = scopedInstitutionId_(payload, user);
+    const id = clean_(payload.id) || `rc_${Utilities.getUuid()}`;
+    const record = {
+      id,
+      institution_id: institutionId,
+      code: required_(payload.code, "Kod kategori"),
+      name: required_(payload.name, "Nama kategori"),
+      description: clean_(payload.description),
+      sort_order: Number(payload.sort_order || 1),
+      status: clean_(payload.status || "active"),
+      created_at: now,
+      created_by: user.id,
+      updated_at: now,
+      updated_by: user.id,
+      deleted_at: "",
+      deleted_by: ""
+    };
+    appendRecord_(sheetName, record);
+    auditChange_(user, action, "risk_category", id, requestId, "", record);
+    return mutationResult_("risk_category", id, record, institutionId);
+  }
+  return mutateTenantSoftRecord_(action, payload, user, requestId, sheetName, "risk_category", {
+    code: "Kod kategori",
+    name: "Nama kategori",
+    description: "Penerangan",
+    sort_order: "1",
+    status: "active"
+  });
+}
+
+function mutateRiskLevel_(action, payload, user, requestId) {
+  requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN]);
+  if (action !== "riskLevels.update") throw appError_("UNKNOWN_ACTION", "unknown action");
+  const id = required_(payload.id, "ID tahap risiko");
+  const before = requireRecordForMutation_(SHEET_RISK_LEVELS, id, user);
+  const minScore = Number(payload.min_score || before.min_score);
+  const maxScore = Number(payload.max_score || before.max_score);
+  if (minScore < 1 || maxScore > 16 || minScore > maxScore) {
+    throw appError_("VALIDATION_ERROR", "Julat skor risiko tidak sah.");
+  }
+  const colorHex = clean_(payload.color_hex || before.color_hex);
+  if (!/^#[0-9a-fA-F]{6}$/.test(colorHex)) {
+    throw appError_("VALIDATION_ERROR", "Warna mesti dalam format hex.");
+  }
+  const after = updateRecord_(SHEET_RISK_LEVELS, id, {
+    label: required_(payload.label || before.label, "Label tahap"),
+    rank: Number(payload.rank || before.rank || 1),
+    min_score: minScore,
+    max_score: maxScore,
+    color_hex: colorHex,
+    description: clean_(payload.description || before.description),
+    default_due_days: Number(payload.default_due_days || before.default_due_days || 30),
+    status: clean_(payload.status || before.status || "active")
+  });
+  auditChange_(user, action, "risk_level", id, requestId, before, after);
+  return mutationResult_("risk_level", id, after, before.institution_id);
 }
 
 function mutateAuditCycle_(action, payload, user, requestId) {
@@ -1126,7 +1201,7 @@ function mutateFinding_(action, payload, user, requestId) {
     requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_AUDITOR, ROLE_REVIEWER]);
     const now = nowIso_();
     const institutionId = scopedInstitutionId_(payload, user);
-    const risk = calculateRisk_(payload.likelihood, payload.impact);
+    const risk = calculateRisk_(payload.likelihood, payload.impact, institutionId);
     const id = clean_(payload.id) || `finding_${Utilities.getUuid()}`;
     const record = {
       id,
@@ -1241,7 +1316,7 @@ function mutateFinding_(action, payload, user, requestId) {
   }
 
   assertCanEditFinding_(user, before);
-  const risk = calculateRisk_(payload.likelihood || before.likelihood, payload.impact || before.impact);
+  const risk = calculateRisk_(payload.likelihood || before.likelihood, payload.impact || before.impact, before.institution_id);
   const after = updateRecord_(sheetName, id, {
     category_id: clean_(payload.category_id || before.category_id),
     title: clean_(payload.title || before.title),
@@ -1354,17 +1429,20 @@ function mutateUser_(action, payload, user, requestId) {
     if (password.length < 8) throw appError_("VALIDATION_ERROR", "Kata laluan mesti sekurang-kurangnya 8 aksara.");
     const institutionId = scopedInstitutionId_(payload, user);
     const id = clean_(payload.id) || Utilities.getUuid();
-    const record = [id, username, hashPassword_(password), normalizeLegacyRoleForClient_(payload.role), nowIso_()];
+    const v2Role = normalizeRequestedUserRole_(payload.role || ROLE_AUDITOR, user);
+    const legacyRole = normalizeLegacyRoleForClient_(v2Role);
+    const record = [id, username, hashPassword_(password), legacyRole, nowIso_()];
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
     sheet.appendRow(record);
     const rowNumber = sheet.getLastRow();
     setExtraField_(sheet, rowNumber, "institution_id", institutionId);
     setExtraField_(sheet, rowNumber, "display_name", clean_(payload.display_name || username));
     setExtraField_(sheet, rowNumber, "email", clean_(payload.email));
+    setExtraField_(sheet, rowNumber, "v2_role", v2Role);
     setExtraField_(sheet, rowNumber, "status", "active");
     setExtraField_(sheet, rowNumber, "updated_at", nowIso_());
     setExtraField_(sheet, rowNumber, "updated_by", user.id);
-    const after = userRecordFromRowObject_({ id, username, password: "", role: record[3], created_at: record[4], institution_id: institutionId });
+    const after = userRecordFromRowObject_({ id, username, password: "", role: legacyRole, v2_role: v2Role, created_at: record[4], institution_id: institutionId });
     auditChange_(user, action, "user", id, requestId, "", sanitizeUserRecord_(after));
     return mutationResult_("user", id, sanitizeUserRecord_(after), institutionId);
   }
@@ -1372,15 +1450,39 @@ function mutateUser_(action, payload, user, requestId) {
   const before = findUserMutableRecord_(id);
   if (!before) throw appError_("NOT_FOUND", "Pengguna tidak ditemui.");
   if (!tenantFilter_(before, user)) throw appError_("FORBIDDEN", "forbidden");
+  if (before.role === ROLE_SUPER_ADMIN && !isSuperAdmin_(user)) {
+    throw appError_("FORBIDDEN", "Hanya super admin boleh mengubah akaun super admin.");
+  }
   const row = before.row_number;
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
   if (action === "users.deactivate") {
     setExtraField_(sheet, row, "deactivated_at", nowIso_());
     setExtraField_(sheet, row, "deactivated_by", user.id);
+    setExtraField_(sheet, row, "status", "inactive");
+  } else if (action === "users.restore") {
+    setExtraField_(sheet, row, "deactivated_at", "");
+    setExtraField_(sheet, row, "deactivated_by", "");
+    setExtraField_(sheet, row, "status", "active");
   } else {
-    if (payload.role) sheet.getRange(row, 4).setValue(normalizeLegacyRoleForClient_(payload.role));
+    const nextUsername = clean_(payload.username || before.username);
+    const duplicateUserId = findUserIdByUsername_(nextUsername);
+    if (nextUsername !== before.username && duplicateUserId && duplicateUserId !== id) {
+      throw appError_("DUPLICATE_USER", "Nama pengguna sudah wujud.");
+    }
+    sheet.getRange(row, 2).setValue(nextUsername);
+    if (payload.role) {
+      const v2Role = normalizeRequestedUserRole_(payload.role, user);
+      sheet.getRange(row, 4).setValue(normalizeLegacyRoleForClient_(v2Role));
+      setExtraField_(sheet, row, "v2_role", v2Role);
+    }
     if (payload.password) sheet.getRange(row, 3).setValue(hashPassword_(String(payload.password)));
+    if (isSuperAdmin_(user) && payload.institution_id) setExtraField_(sheet, row, "institution_id", clean_(payload.institution_id));
+    setExtraField_(sheet, row, "display_name", clean_(payload.display_name || nextUsername));
+    setExtraField_(sheet, row, "email", clean_(payload.email));
+    setExtraField_(sheet, row, "status", clean_(payload.status || before.status || "active"));
   }
+  setExtraField_(sheet, row, "updated_at", nowIso_());
+  setExtraField_(sheet, row, "updated_by", user.id);
   const after = findUserMutableRecord_(id);
   auditChange_(user, action, "user", id, requestId, sanitizeUserRecord_(before), sanitizeUserRecord_(after));
   return mutationResult_("user", id, sanitizeUserRecord_(after), after.institution_id);
@@ -1460,7 +1562,7 @@ function publicUser_(user) {
     display_name: user.display_name || user.username,
     email: user.email || "",
     institution_id: user.institution_id || DEFAULT_INSTITUTION_ID,
-    role: normalizeV2Role_(user.role),
+    role: effectiveV2Role_(user),
     legacy_role: user.role
   });
 }
@@ -1638,14 +1740,15 @@ function sanitizeAuditRecord_(record) {
 }
 
 function userRecordFromRowObject_(record) {
+  const v2Role = normalizeV2Role_(record.v2_role || record.role);
   return {
     id: record.id,
     username: clean_(record.username),
     display_name: clean_(record.display_name || record.username),
     email: clean_(record.email),
     institution_id: clean_(record.institution_id || DEFAULT_INSTITUTION_ID),
-    role: normalizeV2Role_(record.role),
-    legacy_role: normalizeRole_(record.role, ROLE_USER),
+    role: v2Role,
+    legacy_role: normalizeLegacyRoleForClient_(v2Role),
     status: clean_(record.status || "active"),
     created_at: record.created_at,
     deactivated_at: record.deactivated_at || "",
@@ -1768,12 +1871,27 @@ function getRiskLevelMap_() {
   return map;
 }
 
-function getRiskMatrixData_() {
+function getRiskMatrixData_(user) {
+  const institutionId = user ? clean_(user.institution_id || DEFAULT_INSTITUTION_ID) : DEFAULT_INSTITUTION_ID;
   return {
-    likelihood_scale: getSheetObjects_(SHEET_LIKELIHOOD_SCALE).filter(record => record.status === "active"),
-    impact_scale: getSheetObjects_(SHEET_IMPACT_SCALE).filter(record => record.status === "active"),
-    risk_levels: getSheetObjects_(SHEET_RISK_LEVELS).filter(record => record.status === "active")
+    likelihood_scale: getScaleRowsForInstitution_(SHEET_LIKELIHOOD_SCALE, institutionId),
+    impact_scale: getScaleRowsForInstitution_(SHEET_IMPACT_SCALE, institutionId),
+    risk_levels: getRiskLevelRowsForInstitution_(institutionId).filter(record => record.status === "active")
   };
+}
+
+function getScaleRowsForInstitution_(sheetName, institutionId) {
+  institutionId = clean_(institutionId || DEFAULT_INSTITUTION_ID);
+  const rows = getSheetObjects_(sheetName)
+    .filter(record => record.status === "active")
+    .filter(record => clean_(record.institution_id || DEFAULT_INSTITUTION_ID) === institutionId);
+  if (rows.length) return rows;
+  return [
+    { institution_id: DEFAULT_INSTITUTION_ID, value: 1, label: "Rendah", guidance: "Jarang berlaku atau kesan minimum.", sort_order: 1, status: "active" },
+    { institution_id: DEFAULT_INSTITUTION_ID, value: 2, label: "Sederhana", guidance: "Boleh berlaku atau kesan sederhana.", sort_order: 2, status: "active" },
+    { institution_id: DEFAULT_INSTITUTION_ID, value: 3, label: "Tinggi", guidance: "Kerap berlaku atau kesan besar.", sort_order: 3, status: "active" },
+    { institution_id: DEFAULT_INSTITUTION_ID, value: 4, label: "Sangat Tinggi", guidance: "Sangat kerap atau kesan sangat serius.", sort_order: 4, status: "active" }
+  ];
 }
 
 function isCorrectiveActionOverdue_(action) {
@@ -1795,12 +1913,26 @@ function tenantFilter_(record, user) {
   return institutionId === clean_(user.institution_id || DEFAULT_INSTITUTION_ID);
 }
 
+function includeArchived_(p) {
+  return String(p?.include_archived || p?.include_deleted || "") === "1";
+}
+
+function isArchivedRecord_(record) {
+  const status = clean_(record?.status).toLowerCase();
+  return Boolean(record?.deleted_at) || status === "archived";
+}
+
+function isArchivedUserRecord_(record) {
+  const status = clean_(record?.status).toLowerCase();
+  return Boolean(record?.deactivated_at) || status === "inactive" || status === "archived";
+}
+
 function canAccessInstitution_(user, institutionId) {
   return isSuperAdmin_(user) || clean_(user.institution_id || DEFAULT_INSTITUTION_ID) === clean_(institutionId);
 }
 
 function roleCan_(user, allowedRoles) {
-  const role = normalizeV2Role_(user.role);
+  const role = effectiveV2Role_(user);
   return allowedRoles.indexOf(role) !== -1;
 }
 
@@ -1809,7 +1941,11 @@ function requireRole_(user, allowedRoles) {
 }
 
 function isSuperAdmin_(user) {
-  return normalizeV2Role_(user.role) === ROLE_SUPER_ADMIN;
+  return effectiveV2Role_(user) === ROLE_SUPER_ADMIN;
+}
+
+function effectiveV2Role_(user) {
+  return normalizeV2Role_(user?.v2_role || user?.role);
 }
 
 function normalizeV2Role_(role) {
@@ -1818,6 +1954,14 @@ function normalizeV2Role_(role) {
   if (role === ROLE_USER) return ROLE_AUDITOR;
   if ([ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_AUDITOR, ROLE_REVIEWER, ROLE_VIEWER].indexOf(role) !== -1) return role;
   return ROLE_VIEWER;
+}
+
+function normalizeRequestedUserRole_(role, actor) {
+  const normalized = normalizeV2Role_(role || ROLE_AUDITOR);
+  if (normalized === ROLE_SUPER_ADMIN && !isSuperAdmin_(actor)) {
+    throw appError_("FORBIDDEN", "Hanya super admin boleh mencipta atau menetapkan role super admin.");
+  }
+  return normalized;
 }
 
 function normalizeLegacyRoleForClient_(role) {
@@ -1841,7 +1985,7 @@ function ensureCycleIsEditable_(cycleId) {
 }
 
 function assertCanEditFinding_(user, finding) {
-  const role = normalizeV2Role_(user.role);
+  const role = effectiveV2Role_(user);
   if ([ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_REVIEWER].indexOf(role) !== -1) return;
   if (role !== ROLE_AUDITOR) throw appError_("FORBIDDEN", "forbidden");
   if (String(finding.created_by || "") !== String(user.id || "")) throw appError_("FORBIDDEN", "forbidden");
@@ -1913,6 +2057,7 @@ function ensureCompatibilityColumns_() {
     "institution_id",
     "display_name",
     "email",
+    "v2_role",
     "password_salt",
     "status",
     "failed_login_count",
@@ -1953,7 +2098,7 @@ function ensureSheet_(name, headers) {
 function ensureSettings_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SETTINGS);
   const settings = {
-    schema_version: "2.1-blueprint-foundation",
+    schema_version: "2.2-phase2-data-master",
     app_name: APP_NAME,
     logo_url: LOGO_URL,
     favicon_url: FAVICON_URL,
@@ -2068,7 +2213,7 @@ function seedDummyV2Data_() {
     const number = String(index + 1).padStart(2, "0");
     const likelihood = (index % 4) + 1;
     const impact = ((index + 1) % 4) + 1;
-    const risk = calculateRisk_(likelihood, impact);
+    const risk = calculateRisk_(likelihood, impact, DEFAULT_INSTITUTION_ID);
     return [
       `finding_demo_${number}`,
       DEFAULT_INSTITUTION_ID,
@@ -2199,6 +2344,69 @@ function seedRiskCategories_() {
   }
 }
 
+function cloneDefaultConfigForInstitution_(institutionId, actorId) {
+  institutionId = clean_(institutionId);
+  if (!institutionId || institutionId === DEFAULT_INSTITUTION_ID) return;
+  actorId = clean_(actorId || "system");
+  cloneScaleForInstitution_(SHEET_LIKELIHOOD_SCALE, institutionId);
+  cloneScaleForInstitution_(SHEET_IMPACT_SCALE, institutionId);
+  cloneRiskLevelsForInstitution_(institutionId);
+  cloneRiskCategoriesForInstitution_(institutionId, actorId);
+}
+
+function cloneScaleForInstitution_(sheetName, institutionId) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  const existing = new Set(
+    sheet.getDataRange().getValues().slice(1).map(row => `${row[0]}:${row[1]}`)
+  );
+  const rows = [
+    [institutionId, 1, "Rendah", "Jarang berlaku atau kesan minimum.", 1, "active"],
+    [institutionId, 2, "Sederhana", "Boleh berlaku atau kesan sederhana.", 2, "active"],
+    [institutionId, 3, "Tinggi", "Kerap berlaku atau kesan besar.", 3, "active"],
+    [institutionId, 4, "Sangat Tinggi", "Sangat kerap atau kesan sangat serius.", 4, "active"]
+  ].filter(row => !existing.has(`${row[0]}:${row[1]}`));
+  if (rows.length) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, HEADERS.likelihood_scale.length).setValues(rows);
+  }
+}
+
+function cloneRiskLevelsForInstitution_(institutionId) {
+  const rows = V2_RISK_LEVELS.map(row => [
+    `${institutionId}_${row[2]}`,
+    institutionId,
+    row[2],
+    row[3],
+    row[4],
+    row[5],
+    row[6],
+    row[7],
+    row[8],
+    row[9],
+    row[10]
+  ]);
+  appendRowsIfMissing_(SHEET_RISK_LEVELS, 0, rows, HEADERS.risk_levels);
+}
+
+function cloneRiskCategoriesForInstitution_(institutionId, actorId) {
+  const now = nowIso_();
+  const rows = V2_RISK_CATEGORIES.map(row => [
+    `${institutionId}_${row[0]}`,
+    institutionId,
+    row[2],
+    row[3],
+    row[4],
+    row[5],
+    row[6],
+    now,
+    actorId,
+    now,
+    actorId,
+    "",
+    ""
+  ]);
+  appendRowsIfMissing_(SHEET_RISK_CATEGORIES, 0, rows, HEADERS.risk_categories);
+}
+
 function seedDummyUsers_() {
   DUMMY_USERS.forEach(user => ensureUser_(user));
 }
@@ -2221,6 +2429,7 @@ function ensureUser_(user) {
     const rowNumber = sheet.getLastRow();
     setExtraField_(sheet, rowNumber, "institution_id", DEFAULT_INSTITUTION_ID);
     setExtraField_(sheet, rowNumber, "display_name", user.username);
+    setExtraField_(sheet, rowNumber, "v2_role", normalizeV2Role_(user.role));
     setExtraField_(sheet, rowNumber, "status", "active");
     setExtraField_(sheet, rowNumber, "updated_at", nowIso_());
     setExtraField_(sheet, rowNumber, "updated_by", "system");
@@ -2403,7 +2612,7 @@ function loginAttemptKey_(username) {
   return `sprad_login_${hashPassword_(clean_(username).toLowerCase()).slice(0, 40)}`;
 }
 
-function calculateRisk_(likelihood, impact) {
+function calculateRisk_(likelihood, impact, institutionId) {
   likelihood = Number(likelihood);
   impact = Number(impact);
 
@@ -2415,17 +2624,40 @@ function calculateRisk_(likelihood, impact) {
   }
 
   const score = likelihood * impact;
-  const level = V2_RISK_LEVELS.find(row => score >= row[5] && score <= row[6]);
+  const level = getRiskLevelRowsForInstitution_(institutionId)
+    .find(row => score >= Number(row.min_score) && score <= Number(row.max_score));
   if (!level) throw new Error("Tahap risiko tidak ditemui");
 
   return {
     likelihood,
     impact,
     score,
-    levelId: level[0],
-    levelLabel: level[3],
-    levelRank: level[4]
+    levelId: level.id,
+    levelLabel: level.label,
+    levelRank: Number(level.rank || 1)
   };
+}
+
+function getRiskLevelRowsForInstitution_(institutionId) {
+  institutionId = clean_(institutionId || DEFAULT_INSTITUTION_ID);
+  const records = getSheetObjects_(SHEET_RISK_LEVELS)
+    .filter(record => record.status !== "inactive")
+    .filter(record => !record.deleted_at)
+    .filter(record => clean_(record.institution_id || DEFAULT_INSTITUTION_ID) === institutionId);
+  if (records.length) return records;
+  return V2_RISK_LEVELS.map(row => ({
+    id: row[0],
+    institution_id: row[1],
+    code: row[2],
+    label: row[3],
+    rank: row[4],
+    min_score: row[5],
+    max_score: row[6],
+    color_hex: row[7],
+    description: row[8],
+    default_due_days: row[9],
+    status: row[10]
+  }));
 }
 
 function findRiskCategoryIdByName_(name) {
@@ -2443,9 +2675,11 @@ function findRiskCategoryIdByName_(name) {
   return "";
 }
 
-function findMutationReceipt_(requestId) {
+function findMutationReceipt_(requestId, userId, action) {
   requestId = clean_(requestId);
   if (!requestId) return null;
+  userId = clean_(userId);
+  action = clean_(action);
 
   const rows = SpreadsheetApp.getActiveSpreadsheet()
     .getSheetByName(SHEET_MUTATION_RECEIPTS)
@@ -2454,9 +2688,11 @@ function findMutationReceipt_(requestId) {
   const headers = rows.shift();
 
   for (const row of rows) {
-    if (row[0] === requestId) {
-      return Object.fromEntries(headers.map((header, index) => [header, formatValue_(row[index])]));
-    }
+    const receipt = Object.fromEntries(headers.map((header, index) => [header, formatValue_(row[index])]));
+    if (receipt.request_id !== requestId) continue;
+    if (userId && String(receipt.user_id || "") !== userId) continue;
+    if (action && String(receipt.action || "") !== action) continue;
+    return receipt;
   }
   return null;
 }

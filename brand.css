@@ -227,6 +227,16 @@ table thead {
   background: #f8fafc !important;
 }
 
+table th {
+  padding: .8rem 1rem;
+  text-align: left;
+  color: #64748b;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
 .sprad-table-shell {
   overflow: visible;
   width: 100%;
@@ -246,6 +256,29 @@ table {
 .sprad-crud-table td {
   overflow-wrap: anywhere;
   word-break: normal;
+}
+
+.sprad-cell-stack {
+  display: grid;
+  gap: .25rem;
+  min-width: 0;
+}
+
+.sprad-cell-stack strong,
+.sprad-cell-stack span {
+  min-width: 0;
+  color: #0f172a;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.sprad-cell-stack small {
+  min-width: 0;
+  color: #64748b;
+  font-size: .76rem;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .sprad-crud-table th:nth-child(1),

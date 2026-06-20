@@ -9,7 +9,7 @@ Google Sheets ialah database rasmi. `apps-script/Code.gs` menjalankan setup idem
 Current schema marker:
 
 ```text
-2.1-blueprint-foundation
+2.2-phase2-data-master
 ```
 
 Setting ini disimpan dalam sheet `settings` sebagai `schema_version`.
@@ -23,7 +23,7 @@ Legacy sheets dikekalkan supaya sistem live tidak putus:
 - `sessions`: `token, user_id, expires, created_at`
 - `settings`: `key, value`
 
-V2.1 menambah compatibility columns pada `users` dan `sessions` tanpa mengubah lima kolum asal.
+V2.2 menambah compatibility columns pada `users` dan `sessions` tanpa mengubah lima kolum asal.
 
 Tambahan `users`:
 
@@ -109,7 +109,7 @@ Sanitizer membuang password, password hash, salt, token dan token hash daripada 
 
 ## Dummy Data
 
-Setup V2.1 menambah data demo idempotent:
+Setup V2.2 menambah data demo idempotent:
 
 - 10 institusi demo
 - 10 PTJ demo

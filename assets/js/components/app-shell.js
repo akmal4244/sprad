@@ -1,0 +1,113 @@
+import { STORAGE_KEYS } from "../config.js";
+import { getRoleLabel, getRecordStatusLabel } from "../core/data-master-utils.js";
+
+let toastTimer;
+
+export function normalizeCleanUrl(route) {
+  const storedPath = sessionStorage.getItem("spradCleanPath");
+  sessionStorage.removeItem("spradCleanPath");
+  const cleanPath = route === "home"
+    ? window.location.pathname.replace(/\/index\.html$/, "/")
+    : window.location.pathname.replace(/\/[^/]*\.html$/, `/${route}`);
+  const targetPath = storedPath || cleanPath + window.location.search + window.location.hash;
+  if (targetPath && `${window.location.pathname}${window.location.search}${window.location.hash}` !== targetPath) {
+    history.replaceState(null, "", targetPath);
+  }
+}
+
+export function showToast(title, text, type = "info") {
+  const toast = document.querySelector("#toast");
+  const toastTitle = document.querySelector("#toastTitle");
+  const toastText = document.querySelector("#toastText");
+  const toastIcon = document.querySelector("#toastIcon");
+  if (!toast || !toastTitle || !toastText || !toastIcon) return;
+
+  const styles = {
+    success: ["bg-emerald-50 text-emerald-600", "fa-solid fa-circle-check"],
+    error: ["bg-red-50 text-red-600", "fa-solid fa-circle-exclamation"],
+    info: ["bg-blue-50 text-blue-600", "fa-solid fa-circle-info"],
+    warning: ["bg-amber-50 text-amber-600", "fa-solid fa-triangle-exclamation"]
+  };
+  const [iconClass, iconName] = styles[type] || styles.info;
+  toastTitle.textContent = title;
+  toastText.textContent = text;
+  toastIcon.className = "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg " + iconClass;
+  toastIcon.innerHTML = `<i class="${iconName}"></i>`;
+  toast.classList.remove("hidden");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.add("hidden"), 4200);
+}
+
+export function getSessionContext() {
+  return {
+    token: localStorage.getItem(STORAGE_KEYS.token) || "",
+    legacyRole: (localStorage.getItem(STORAGE_KEYS.role) || "").toLowerCase(),
+    v2Role: (localStorage.getItem(STORAGE_KEYS.v2Role) || "").toLowerCase(),
+    userId: localStorage.getItem(STORAGE_KEYS.userId) || "",
+    institutionId: localStorage.getItem(STORAGE_KEYS.institutionId) || ""
+  };
+}
+
+export function requireAdminSession() {
+  sessionStorage.removeItem("spradCleanPath");
+  const session = getSessionContext();
+  if (!session.token) {
+    window.location.href = "login";
+    return null;
+  }
+  const hasAdminAccess = session.v2Role
+    ? ["super_admin", "institution_admin"].includes(session.v2Role)
+    : session.legacyRole === "pentadbir";
+  if (!hasAdminAccess) {
+    window.location.href = "form";
+    return null;
+  }
+  return session;
+}
+
+export function clearCredentialsIfNotRemembered() {
+  localStorage.removeItem("spradPassword");
+  if (localStorage.getItem(STORAGE_KEYS.rememberMe) === "true") return;
+  localStorage.removeItem(STORAGE_KEYS.username);
+}
+
+export function logoutToLogin() {
+  clearCredentialsIfNotRemembered();
+  localStorage.removeItem(STORAGE_KEYS.token);
+  localStorage.removeItem(STORAGE_KEYS.role);
+  localStorage.removeItem(STORAGE_KEYS.v2Role);
+  localStorage.removeItem(STORAGE_KEYS.userId);
+  localStorage.removeItem(STORAGE_KEYS.institutionId);
+  window.location.href = "login";
+}
+
+export function setupLogoutButton() {
+  document.querySelector("#logout")?.addEventListener("click", logoutToLogin);
+}
+
+export function setupSidebar(currentRoute, session = getSessionContext()) {
+  const sidebarRole = document.querySelector("#sidebarRole");
+  if (sidebarRole) {
+    const role = session.v2Role || session.legacyRole || "viewer";
+    sidebarRole.textContent = getRoleLabel(role);
+  }
+
+  document.querySelectorAll("[data-nav-route]").forEach((link) => {
+    const route = link.dataset.navRoute;
+    const active = route === currentRoute;
+    link.className = active
+      ? "flex items-center gap-3 rounded-lg bg-blue-50 px-4 py-3 text-sm font-extrabold text-blue-600"
+      : "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900";
+  });
+}
+
+export function statusBadge(status) {
+  const normalized = String(status || "active").toLowerCase();
+  const styles = {
+    active: "bg-emerald-50 text-emerald-700",
+    inactive: "bg-amber-50 text-amber-700",
+    archived: "bg-slate-100 text-slate-600"
+  };
+  const className = styles[normalized] || styles.archived;
+  return `<span class="inline-flex rounded-full px-3 py-1 text-[11px] font-extrabold uppercase tracking-wide ${className}">${getRecordStatusLabel(normalized)}</span>`;
+}

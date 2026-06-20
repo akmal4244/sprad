@@ -26,7 +26,7 @@ Endpoint legacy seperti `login`, `register`, dan `getContacts` masih mengekalkan
 
 | Method | Action | Token | Nota |
 | --- | --- | --- | --- |
-| GET | `login` | Tidak | Legacy login; response turut pulangkan `user_id`, `institution_id`, dan `v2_role` selepas Code.gs V2.1 deploy. |
+| GET | `login` | Tidak | Legacy login; response turut pulangkan `user_id`, `institution_id`, dan `v2_role` selepas Code.gs V2.2 deploy. |
 | GET | `register` | Tidak | Public registration hanya role pengguna. Pentadbir awam ditutup. |
 | GET | `auth.me` | Ya | Pulangkan profil user tersanitasi. |
 | GET | `auth.logout` | Ya | Revoke session jika kolum V2 tersedia. |
@@ -77,13 +77,15 @@ UI hanya boleh memaparkan berjaya selepas receipt `status="success"`.
 Supported mutation actions:
 
 - `institutions.create`, `institutions.update`, `institutions.delete`, `institutions.restore`
-- `orgUnits.create`, `orgUnits.update`, `orgUnits.delete`
+- `orgUnits.create`, `orgUnits.update`, `orgUnits.delete`, `orgUnits.restore`
+- `riskCategories.create`, `riskCategories.update`, `riskCategories.delete`, `riskCategories.restore`
+- `riskLevels.update`
 - `auditCycles.create`, `auditCycles.update`, `auditCycles.finalize`
 - `audits.create`, `audits.update`
 - `findings.create`, `findings.update`, `findings.delete`, `findings.restore`
 - `findings.submit`, `findings.return`, `findings.approve`, `findings.overrideLevel`
 - `correctiveActions.create`, `correctiveActions.update`, `correctiveActions.submitForVerification`, `correctiveActions.verify`
-- `users.create`, `users.update`, `users.deactivate`
+- `users.create`, `users.update`, `users.deactivate`, `users.restore`
 - `settings.update`
 
 ## Compatibility Actions

@@ -21,13 +21,26 @@ Gunakan checklist ini selepas frontend push dan Apps Script redeploy.
 
 ## 3. Apps Script V2 Foundation
 
-- [ ] `config.get` pulangkan schema `2.1-blueprint-foundation`.
+- [ ] `config.get` pulangkan schema `2.2-phase2-data-master`.
 - [ ] `riskMatrix.get` pulangkan scale dan risk level dari sheet.
 - [ ] `auth.me` pulangkan user tanpa password/token.
 - [ ] `institutions.list` berfungsi mengikut role.
 - [ ] `orgUnits.list`, `auditCycles.list`, `audits.list`, `riskCategories.list` berfungsi.
 - [ ] `dashboard.summary` pulangkan total, counts, high/critical percent, category summary dan overdue actions.
 - [ ] `reports.dataset` pulangkan institution, findings, risk matrix, overall, categories dan actions.
+
+## 3A. Data Induk Fasa 2
+
+- [ ] `/institutions` buka tanpa `.html` dan memaparkan jadual institusi.
+- [ ] Super admin boleh create, update, archive dan restore institusi.
+- [ ] `/org-units` buka tanpa `.html` dan memaparkan PTJ / unit.
+- [ ] Institution admin boleh create, update, archive dan restore PTJ institusi sendiri.
+- [ ] `/users` buka tanpa `.html` dan memaparkan user tanpa password.
+- [ ] Admin boleh create, update, deactivate dan restore user.
+- [ ] `/settings` buka tanpa `.html` dan memaparkan kategori serta matriks risiko.
+- [ ] Admin boleh create, update, archive dan restore kategori risiko.
+- [ ] Admin boleh update label, julat skor, warna dan SLA tahap risiko.
+- [ ] Jadual data induk paginate 5 rekod dan tidak scroll kiri kanan.
 
 ## 4. Mutation Receipt
 
