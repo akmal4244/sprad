@@ -719,6 +719,7 @@ function ensureAuditShell() {
         <div class="mt-4 space-y-2">
           <a href="dashboard" data-nav-route="dashboard" class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500"><i class="fa-solid fa-chart-line w-4"></i>Dashboard</a>
           <a href="form" data-nav-route="form" class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500"><i class="fa-solid fa-clipboard-list w-4"></i>Penilaian risiko</a>
+          <a href="ai-intake" data-nav-route="ai-intake" class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500"><i class="fa-solid fa-wand-magic-sparkles w-4"></i>AI Intake</a>
           <a href="audit-cycles" data-nav-route="audit-cycles" class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500"><i class="fa-solid fa-calendar-days w-4"></i>Kitaran audit</a>
           <a href="audits" data-nav-route="audits" class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500"><i class="fa-solid fa-file-signature w-4"></i>Audit</a>
           <a href="findings" data-nav-route="findings" class="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-bold text-slate-500"><i class="fa-solid fa-triangle-exclamation w-4"></i>Penemuan</a>

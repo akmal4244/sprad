@@ -20,6 +20,8 @@ const SHEET_FINDING_UNITS = "finding_units";
 const SHEET_CORRECTIVE_ACTIONS = "corrective_actions";
 const SHEET_ATTACHMENTS = "attachments";
 const SHEET_AUDIT_LOGS = "audit_logs";
+const SHEET_AI_JOBS = "ai_jobs";
+const SHEET_AI_DRAFTS = "ai_drafts";
 const SHEET_MUTATION_RECEIPTS = "mutation_receipts";
 
 const ROLE_ADMIN = "pentadbir";
@@ -31,7 +33,7 @@ const ROLE_REVIEWER = "reviewer";
 const ROLE_VIEWER = "viewer";
 const SESSION_DAYS = 7;
 const DEFAULT_INSTITUTION_ID = "inst_default";
-const SETUP_CACHE_KEY = "sprad_schema_ready_v2_6";
+const SETUP_CACHE_KEY = "sprad_schema_ready_v2_7";
 const SETUP_CACHE_SECONDS = 300;
 const LOGIN_ATTEMPT_LIMIT = 8;
 const LOGIN_ATTEMPT_WINDOW_SECONDS = 600;
@@ -57,6 +59,8 @@ const HEADERS = {
   corrective_actions: ["id", "institution_id", "finding_id", "action_text", "owner_user_id", "owner_name", "owner_unit_id", "target_date", "status", "progress_percent", "progress_note", "completion_evidence", "submitted_for_verification_at", "verified_at", "verified_by", "verification_note", "created_at", "created_by", "updated_at", "updated_by", "deleted_at", "deleted_by", "row_version"],
   attachments: ["id", "institution_id", "entity_type", "entity_id", "drive_file_id", "file_name", "mime_type", "file_url", "uploaded_at", "uploaded_by", "deleted_at", "deleted_by"],
   audit_logs: ["id", "institution_id", "user_id", "action", "entity_type", "entity_id", "request_id", "before_json", "after_json", "created_at"],
+  ai_jobs: ["id", "institution_id", "file_id", "file_name", "mime_type", "file_size", "source_title", "status", "model", "draft_count", "review_score", "review_summary", "error_message", "created_at", "created_by", "updated_at", "updated_by", "deleted_at", "deleted_by"],
+  ai_drafts: ["id", "institution_id", "job_id", "category_id", "title", "issue_description", "root_cause", "impact_description", "audit_evidence", "recommendation", "likelihood", "impact", "calculated_score", "calculated_level_id", "confidence", "auto_review_status", "review_score", "auto_review_flags", "source_page", "status", "promoted_finding_id", "created_at", "created_by", "updated_at", "updated_by", "deleted_at", "deleted_by"],
   mutation_receipts: ["request_id", "user_id", "institution_id", "action", "entity_type", "entity_id", "status", "error_code", "error_message", "created_at", "completed_at"]
 };
 
@@ -198,7 +202,7 @@ function getConfig() {
     ok: true,
     data: {
       app_name: APP_NAME,
-      schema_version: "2.6-full-blueprint",
+      schema_version: "2.7-ai-intake",
       logo_url: LOGO_URL,
       favicon_url: FAVICON_URL,
       legacy_roles: [ROLE_ADMIN, ROLE_USER],
@@ -778,6 +782,8 @@ function routeV2Get_(p, user) {
   if (action === "auditLogs.list") return listAuditLogs_(user, p);
   if (action === "dashboard.summary") return getDashboardSummary_(user, p);
   if (action === "reports.dataset") return getReportDataset_(user, p);
+  if (action === "aiJobs.list") return listAiJobs_(user, p);
+  if (action === "aiDrafts.list") return listAiDrafts_(user, p);
   return null;
 }
 
@@ -824,6 +830,8 @@ function isV2MutationAction_(action) {
     "users.update",
     "users.deactivate",
     "users.restore",
+    "aiIntake.create",
+    "aiDrafts.promote",
     "settings.update",
     "backup.now"
   ].indexOf(clean_(action)) !== -1;
@@ -891,6 +899,8 @@ function performV2Mutation_(action, payload, user, requestId) {
   if (action.indexOf("findings.") === 0) return mutateFinding_(action, payload, user, requestId);
   if (action.indexOf("correctiveActions.") === 0) return mutateCorrectiveAction_(action, payload, user, requestId);
   if (action.indexOf("users.") === 0) return mutateUser_(action, payload, user, requestId);
+  if (action.indexOf("aiIntake.") === 0) return mutateAiIntake_(action, payload, user, requestId);
+  if (action.indexOf("aiDrafts.") === 0) return mutateAiDraft_(action, payload, user, requestId);
   if (action === "settings.update") return mutateSetting_(payload, user, requestId);
   if (action === "backup.now") return mutateBackupNow_(payload, user, requestId);
   throw appError_("UNKNOWN_ACTION", "unknown action");
@@ -906,6 +916,8 @@ function mutationEntityType_(action) {
   if (action.indexOf("findings.") === 0) return "finding";
   if (action.indexOf("correctiveActions.") === 0) return "corrective_action";
   if (action.indexOf("users.") === 0) return "user";
+  if (action.indexOf("aiIntake.") === 0) return "ai_job";
+  if (action.indexOf("aiDrafts.") === 0) return "ai_draft";
   if (action.indexOf("settings.") === 0) return "setting";
   if (action.indexOf("backup.") === 0) return "backup";
   return "record";
@@ -1001,6 +1013,27 @@ function listAuditLogs_(user, p) {
       created_at: record.created_at
     }));
   return apiOk_({ audit_logs: records });
+}
+
+function listAiJobs_(user, p) {
+  const includeArchived = includeArchived_(p);
+  const records = getSheetObjects_(SHEET_AI_JOBS)
+    .filter(record => includeArchived || !isArchivedRecord_(record))
+    .filter(record => aiRecordVisible_(record, user))
+    .filter(record => !p.status || String(record.status || "") === String(p.status))
+    .sort((left, right) => new Date(right.created_at || 0) - new Date(left.created_at || 0));
+  return apiOk_({ jobs: records });
+}
+
+function listAiDrafts_(user, p) {
+  const includeArchived = includeArchived_(p);
+  const records = getSheetObjects_(SHEET_AI_DRAFTS)
+    .filter(record => includeArchived || !isArchivedRecord_(record))
+    .filter(record => aiRecordVisible_(record, user))
+    .filter(record => !p.job_id || String(record.job_id || "") === String(p.job_id))
+    .filter(record => !p.status || String(record.status || "") === String(p.status))
+    .sort((left, right) => new Date(right.created_at || 0) - new Date(left.created_at || 0));
+  return apiOk_({ drafts: records });
 }
 
 function getDashboardSummary_(user, p) {
@@ -1620,6 +1653,155 @@ function mutateCorrectiveAction_(action, payload, user, requestId) {
   });
   auditChange_(user, action, "corrective_action", id, requestId, before, after);
   return mutationResult_("corrective_action", id, after, before.institution_id);
+}
+
+function mutateAiIntake_(action, payload, user, requestId) {
+  if (action !== "aiIntake.create") throw appError_("UNKNOWN_ACTION", "unknown action");
+  requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_AUDITOR, ROLE_REVIEWER]);
+
+  const institutionId = scopedInstitutionId_(payload, user);
+  const fileName = required_(payload.file_name, "Nama fail");
+  const mimeType = required_(payload.mime_type, "Jenis fail");
+  const fileBase64 = required_(payload.file_base64, "Kandungan fail");
+  const fileSize = Number(payload.file_size || 0);
+  if (fileSize > 8 * 1024 * 1024) throw appError_("FILE_TOO_LARGE", "Fail melebihi had 8MB untuk Apps Script Web App.");
+  if (["application/pdf", "text/plain", "text/markdown", "image/png", "image/jpeg", "image/webp"].indexOf(mimeType) === -1) {
+    throw appError_("UNSUPPORTED_FILE", "Format fail belum disokong. Gunakan PDF, teks, PNG, JPG atau WEBP.");
+  }
+
+  const now = nowIso_();
+  const jobId = clean_(payload.id) || `ai_job_${Utilities.getUuid()}`;
+  const model = getGeminiModel_();
+  const blob = Utilities.newBlob(Utilities.base64Decode(fileBase64), mimeType, fileName);
+  const driveFile = getAiUploadFolder_().createFile(blob);
+  const job = {
+    id: jobId,
+    institution_id: institutionId,
+    file_id: driveFile.getId(),
+    file_name: fileName,
+    mime_type: mimeType,
+    file_size: fileSize,
+    source_title: clean_(payload.source_title || fileName),
+    status: "processing",
+    model,
+    draft_count: 0,
+    review_score: 0,
+    review_summary: "Analisis sedang diproses.",
+    error_message: "",
+    created_at: now,
+    created_by: user.id,
+    updated_at: now,
+    updated_by: user.id,
+    deleted_at: "",
+    deleted_by: ""
+  };
+  appendRecord_(SHEET_AI_JOBS, job);
+
+  try {
+    const extraction = callGeminiForAuditIntake_({
+      base64: fileBase64,
+      mimeType,
+      fileName,
+      sourceTitle: job.source_title,
+      institutionId
+    });
+    const drafts = normalizeGeminiDrafts_(extraction, {
+      institutionId,
+      jobId,
+      userId: user.id,
+      now
+    });
+    if (!drafts.length) throw appError_("AI_EMPTY_RESULT", "Gemini tidak menemui isu audit yang boleh distrukturkan.");
+    drafts.forEach(record => appendRecord_(SHEET_AI_DRAFTS, record));
+    const averageScore = Math.round(drafts.reduce((sum, draft) => sum + Number(draft.review_score || 0), 0) / drafts.length);
+    const summary = `${drafts.length} draft dijana. ${drafts.filter(draft => draft.auto_review_status !== "lengkap").length} perlu semakan auditor.`;
+    const after = updateRecord_(SHEET_AI_JOBS, jobId, {
+      status: "completed",
+      draft_count: drafts.length,
+      review_score: averageScore,
+      review_summary: summary,
+      error_message: "",
+      updated_at: nowIso_(),
+      updated_by: user.id
+    });
+    auditChange_(user, action, "ai_job", jobId, requestId, "", after);
+    return mutationResult_("ai_job", jobId, { job: after, drafts }, institutionId);
+  } catch (err) {
+    const after = updateRecord_(SHEET_AI_JOBS, jobId, {
+      status: "failed",
+      review_summary: "Analisis gagal.",
+      error_message: err.message,
+      updated_at: nowIso_(),
+      updated_by: user.id
+    });
+    auditChange_(user, action, "ai_job", jobId, requestId, job, after);
+    throw err;
+  }
+}
+
+function mutateAiDraft_(action, payload, user, requestId) {
+  if (action !== "aiDrafts.promote") throw appError_("UNKNOWN_ACTION", "unknown action");
+  requireRole_(user, [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_AUDITOR, ROLE_REVIEWER]);
+  const draftId = required_(payload.id, "ID draft AI");
+  const draft = requireRecordForMutation_(SHEET_AI_DRAFTS, draftId, user);
+  if (!aiRecordVisible_(draft, user)) throw appError_("FORBIDDEN", "forbidden");
+  if (draft.status === "promoted" && draft.promoted_finding_id) {
+    return mutationResult_("ai_draft", draftId, draft, draft.institution_id);
+  }
+
+  const institutionId = draft.institution_id || user.institution_id || DEFAULT_INSTITUTION_ID;
+  const cycleId = clean_(payload.cycle_id) || getOrCreateAiAuditCycle_(institutionId, user);
+  const cycle = requireSameTenantRecord_(SHEET_AUDIT_CYCLES, cycleId, institutionId, "Kitaran audit");
+  ensureCycleIsEditable_(cycle.id);
+  const risk = calculateRisk_(draft.likelihood || 1, draft.impact || 1, institutionId);
+  const now = nowIso_();
+  const findingId = `finding_ai_${Utilities.getUuid()}`;
+  const finding = {
+    id: findingId,
+    institution_id: institutionId,
+    cycle_id: cycle.id,
+    audit_id: "",
+    category_id: draft.category_id || defaultRiskCategoryId_(institutionId),
+    finding_no: nextFindingNo_(),
+    title: required_(draft.title, "Tajuk isu"),
+    issue_description: required_(draft.issue_description, "Huraian isu"),
+    detailed_justification: draft.issue_description,
+    root_cause: clean_(draft.root_cause),
+    impact_description: clean_(draft.impact_description),
+    audit_evidence: clean_(draft.audit_evidence),
+    recommendation: clean_(draft.recommendation),
+    likelihood: risk.likelihood,
+    impact: risk.impact,
+    calculated_score: risk.score,
+    calculated_level_id: risk.levelId,
+    final_level_id: risk.levelId,
+    override_reason: "",
+    workflow_status: "draft",
+    review_note: `Dijana daripada AI Intake: ${draft.job_id}`,
+    created_at: now,
+    created_by: user.id,
+    updated_at: now,
+    updated_by: user.id,
+    submitted_at: "",
+    submitted_by: "",
+    reviewed_at: "",
+    reviewed_by: "",
+    approved_at: "",
+    approved_by: "",
+    deleted_at: "",
+    deleted_by: "",
+    row_version: 1
+  };
+  appendRecord_(SHEET_FINDINGS, finding);
+  const after = updateRecord_(SHEET_AI_DRAFTS, draftId, {
+    status: "promoted",
+    promoted_finding_id: findingId,
+    updated_at: now,
+    updated_by: user.id
+  });
+  auditChange_(user, action, "ai_draft", draftId, requestId, draft, after);
+  auditChange_(user, "findings.create.fromAiDraft", "finding", findingId, requestId, "", finding);
+  return mutationResult_("ai_draft", draftId, { draft: after, finding }, institutionId);
 }
 
 function mutateUser_(action, payload, user, requestId) {
@@ -2394,6 +2576,263 @@ function defaultTargetDateForFinding_(finding) {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
+function aiRecordVisible_(record, user) {
+  if (!tenantFilter_(record, user)) return false;
+  const role = effectiveV2Role_(user);
+  if (role === ROLE_AUDITOR) return String(record.created_by || "") === String(user.id || "");
+  return [ROLE_SUPER_ADMIN, ROLE_INSTITUTION_ADMIN, ROLE_REVIEWER].indexOf(role) !== -1;
+}
+
+function getAiUploadFolder_() {
+  const props = PropertiesService.getScriptProperties();
+  const existingId = props.getProperty("SPRAD_AI_UPLOAD_FOLDER_ID");
+  if (existingId) {
+    try {
+      return DriveApp.getFolderById(existingId);
+    } catch (err) {
+      console.warn(`SPRAD AI folder not found: ${err.message}`);
+    }
+  }
+  const folder = DriveApp.createFolder("SPRAD AI Uploads");
+  props.setProperty("SPRAD_AI_UPLOAD_FOLDER_ID", folder.getId());
+  return folder;
+}
+
+function getGeminiModel_() {
+  return PropertiesService.getScriptProperties().getProperty("GEMINI_MODEL") || "gemini-2.5-flash";
+}
+
+function getGeminiApiKey_() {
+  return PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY") || "";
+}
+
+function callGeminiForAuditIntake_({ base64, mimeType, fileName, sourceTitle, institutionId }) {
+  const apiKey = getGeminiApiKey_();
+  if (!apiKey) {
+    throw appError_("GEMINI_API_KEY_MISSING", "GEMINI_API_KEY belum ditetapkan dalam Apps Script Script Properties.");
+  }
+  const model = getGeminiModel_();
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  const prompt = [
+    "Anda ialah pembantu analisis audit dalam untuk Sistem Penilaian Risiko Audit Dalam (SPRAD).",
+    "Baca dokumen laporan audit ini dan keluarkan isu audit dalam Bahasa Melayu.",
+    "Pulangkan JSON sahaja mengikut schema. Jangan tambah markdown.",
+    "Untuk setiap isu, tentukan kategori risiko paling hampir: Tiada Mandat, Kesilapan Isu Teknikal, Kecuaian, Pembaziran, atau Penyelewengan / Ketirisan.",
+    "Tetapkan likelihood dan impact antara 1 hingga 4 berdasarkan matriks SPRAD.",
+    `Tajuk sumber: ${sourceTitle || fileName}`,
+    `Institusi ID: ${institutionId}`
+  ].join("\n");
+  const request = {
+    contents: [{
+      role: "user",
+      parts: [
+        { inlineData: { mimeType, data: base64 } },
+        { text: prompt }
+      ]
+    }],
+    generationConfig: {
+      temperature: 0.2,
+      responseMimeType: "application/json",
+      responseSchema: geminiAuditIntakeSchema_()
+    }
+  };
+  const response = UrlFetchApp.fetch(endpoint, {
+    method: "post",
+    contentType: "application/json",
+    headers: { "x-goog-api-key": apiKey },
+    payload: JSON.stringify(request),
+    muteHttpExceptions: true
+  });
+  const status = response.getResponseCode();
+  const text = response.getContentText();
+  if (status < 200 || status >= 300) {
+    throw appError_("GEMINI_API_ERROR", `Gemini API gagal (${status}): ${text.slice(0, 500)}`);
+  }
+  const data = JSON.parse(text);
+  const content = ((data.candidates || [])[0]?.content?.parts || [])
+    .map(part => part.text || "")
+    .join("\n")
+    .trim();
+  if (!content) throw appError_("GEMINI_EMPTY_RESPONSE", "Gemini tidak memulangkan kandungan analisis.");
+  return parseGeminiJson_(content);
+}
+
+function geminiAuditIntakeSchema_() {
+  return {
+    type: "object",
+    properties: {
+      summary: { type: "string" },
+      findings: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            issue_description: { type: "string" },
+            root_cause: { type: "string" },
+            impact_description: { type: "string" },
+            recommendation: { type: "string" },
+            audit_evidence: { type: "string" },
+            risk_category: { type: "string" },
+            likelihood: { type: "integer" },
+            impact: { type: "integer" },
+            confidence: { type: "number" },
+            source_page: { type: "string" }
+          },
+          required: ["title", "issue_description", "risk_category", "likelihood", "impact", "confidence"]
+        }
+      }
+    },
+    required: ["findings"]
+  };
+}
+
+function parseGeminiJson_(content) {
+  const cleaned = String(content || "")
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+  return JSON.parse(cleaned);
+}
+
+function normalizeGeminiDrafts_(extraction, context) {
+  const items = Array.isArray(extraction?.findings) ? extraction.findings : [];
+  return items.map((item, index) => {
+    const likelihood = clampRiskValue_(item.likelihood);
+    const impact = clampRiskValue_(item.impact);
+    const risk = calculateRisk_(likelihood, impact, context.institutionId);
+    const categoryId = findRiskCategoryIdByName_(item.risk_category) || defaultRiskCategoryId_(context.institutionId);
+    const base = {
+      title: clean_(item.title),
+      issue_description: clean_(item.issue_description),
+      root_cause: clean_(item.root_cause),
+      impact_description: clean_(item.impact_description),
+      recommendation: clean_(item.recommendation),
+      confidence: normalizeConfidence_(item.confidence),
+      likelihood,
+      impact
+    };
+    const review = reviewAiDraft_(base, context.institutionId);
+    return {
+      id: `ai_draft_${Utilities.getUuid()}`,
+      institution_id: context.institutionId,
+      job_id: context.jobId,
+      category_id: categoryId,
+      title: base.title || `Draft isu audit ${index + 1}`,
+      issue_description: base.issue_description,
+      root_cause: base.root_cause,
+      impact_description: base.impact_description,
+      audit_evidence: clean_(item.audit_evidence),
+      recommendation: base.recommendation,
+      likelihood,
+      impact,
+      calculated_score: risk.score,
+      calculated_level_id: risk.levelId,
+      confidence: base.confidence,
+      auto_review_status: review.status,
+      review_score: review.score,
+      auto_review_flags: JSON.stringify(review.flags),
+      source_page: clean_(item.source_page),
+      status: "draft",
+      promoted_finding_id: "",
+      created_at: context.now,
+      created_by: context.userId,
+      updated_at: context.now,
+      updated_by: context.userId,
+      deleted_at: "",
+      deleted_by: ""
+    };
+  });
+}
+
+function reviewAiDraft_(draft, institutionId) {
+  const flags = [];
+  [
+    ["title", "missing_title"],
+    ["issue_description", "missing_issue_description"],
+    ["root_cause", "missing_root_cause"],
+    ["impact_description", "missing_impact_description"],
+    ["recommendation", "missing_recommendation"]
+  ].forEach(([field, flag]) => {
+    if (!clean_(draft[field])) flags.push(flag);
+  });
+  if (Number(draft.confidence || 0) < 0.7) flags.push("low_confidence");
+  const risk = calculateRisk_(draft.likelihood || 1, draft.impact || 1, institutionId);
+  if (risk.levelRank >= 3) flags.push("high_risk");
+  if (isPossibleDuplicateFinding_(draft.title, institutionId)) flags.push("possible_duplicate");
+  const missingPenalty = flags.filter(flag => flag.indexOf("missing_") === 0).length * 2;
+  const score = Math.max(0, Math.min(100, Math.round(Number(draft.confidence || 0) * 100) - missingPenalty - (flags.indexOf("low_confidence") !== -1 ? 1 : 0) - (flags.indexOf("possible_duplicate") !== -1 ? 10 : 0)));
+  return {
+    status: flags.some(flag => flag.indexOf("missing_") === 0 || flag === "low_confidence" || flag === "possible_duplicate") ? "perlu_semakan" : "lengkap",
+    flags,
+    score
+  };
+}
+
+function isPossibleDuplicateFinding_(title, institutionId) {
+  const key = normalizeTitleKey_(title);
+  if (!key) return false;
+  return getSheetObjects_(SHEET_FINDINGS)
+    .filter(record => !record.deleted_at)
+    .filter(record => clean_(record.institution_id || DEFAULT_INSTITUTION_ID) === clean_(institutionId || DEFAULT_INSTITUTION_ID))
+    .some(record => normalizeTitleKey_(record.title) === key);
+}
+
+function normalizeTitleKey_(title) {
+  return clean_(title).toLowerCase().replace(/[^a-z0-9\u00C0-\u024F]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function normalizeConfidence_(value) {
+  const confidence = Number(value);
+  if (!Number.isFinite(confidence)) return 0.5;
+  if (confidence > 1) return Math.max(0, Math.min(1, confidence / 100));
+  return Math.max(0, Math.min(1, confidence));
+}
+
+function clampRiskValue_(value) {
+  const number = Math.round(Number(value || 1));
+  if (!Number.isFinite(number)) return 1;
+  return Math.max(1, Math.min(4, number));
+}
+
+function defaultRiskCategoryId_(institutionId) {
+  const records = getSheetObjects_(SHEET_RISK_CATEGORIES)
+    .filter(record => !record.deleted_at)
+    .filter(record => clean_(record.institution_id || DEFAULT_INSTITUTION_ID) === clean_(institutionId || DEFAULT_INSTITUTION_ID));
+  return records[0]?.id || V2_RISK_CATEGORIES[0][0];
+}
+
+function getOrCreateAiAuditCycle_(institutionId, user) {
+  const existing = getSheetObjects_(SHEET_AUDIT_CYCLES)
+    .filter(record => !record.deleted_at)
+    .filter(record => clean_(record.institution_id || DEFAULT_INSTITUTION_ID) === clean_(institutionId || DEFAULT_INSTITUTION_ID))
+    .filter(record => ["open", "in_progress"].indexOf(clean_(record.status || "open")) !== -1);
+  if (existing.length) return existing[0].id;
+  const now = nowIso_();
+  const year = new Date().getFullYear();
+  const id = `cycle_ai_${Utilities.getUuid()}`;
+  appendRecord_(SHEET_AUDIT_CYCLES, {
+    id,
+    institution_id: institutionId,
+    title: `AI Intake ${year}`,
+    audit_year: year,
+    start_date: `${year}-01-01`,
+    end_date: `${year}-12-31`,
+    status: "open",
+    report_reference: `SPRAD/AI/${year}`,
+    finalized_at: "",
+    finalized_by: "",
+    created_at: now,
+    created_by: user.id,
+    updated_at: now,
+    updated_by: user.id,
+    deleted_at: "",
+    deleted_by: ""
+  });
+  return id;
+}
+
 function closeFindingIfActionsComplete_(finding, user, requestId) {
   const actions = getSheetObjects_(SHEET_CORRECTIVE_ACTIONS)
     .filter(action => action.finding_id === finding.id && !action.deleted_at);
@@ -2455,6 +2894,8 @@ function ensureV2Sheets_() {
   ensureSheet_(SHEET_CORRECTIVE_ACTIONS, HEADERS.corrective_actions);
   ensureSheet_(SHEET_ATTACHMENTS, HEADERS.attachments);
   ensureSheet_(SHEET_AUDIT_LOGS, HEADERS.audit_logs);
+  ensureSheet_(SHEET_AI_JOBS, HEADERS.ai_jobs);
+  ensureSheet_(SHEET_AI_DRAFTS, HEADERS.ai_drafts);
   ensureSheet_(SHEET_MUTATION_RECEIPTS, HEADERS.mutation_receipts);
 }
 
@@ -2504,7 +2945,7 @@ function ensureSheet_(name, headers) {
 function ensureSettings_() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_SETTINGS);
   const settings = {
-    schema_version: "2.6-full-blueprint",
+    schema_version: "2.7-ai-intake",
     app_name: APP_NAME,
     logo_url: LOGO_URL,
     favicon_url: FAVICON_URL,
@@ -2517,7 +2958,7 @@ function ensureSettings_() {
     dummy_sessions_target: DUMMY_SESSIONS.length,
     dummy_settings_target: DUMMY_SETTINGS.length,
     dummy_v2_records_per_table: 10,
-    completed_phases: "0,1,2,3,4,5,6",
+    completed_phases: "0,1,2,3,4,5,6,7",
     backup_trigger_handler: "runDailyBackup",
     workflow_state_machine: "enabled",
     allow_public_registration: "true",
@@ -2533,6 +2974,8 @@ function ensureSettings_() {
   };
 
   Object.entries(settings).forEach(upsert);
+  setSettingValue_(sheet, headers, "schema_version", "2.7-ai-intake", "system", "global", "system");
+  setSettingValue_(sheet, headers, "completed_phases", "0,1,2,3,4,5,6,7", "system", "global", "system");
 }
 
 function setSettingIfMissing_(sheet, headers, key, value, scopeType, scopeId, updatedBy) {
@@ -2546,6 +2989,25 @@ function setSettingIfMissing_(sheet, headers, key, value, scopeType, scopeId, up
     updated_by: updatedBy || "system"
   };
   sheet.appendRow(headers.map(header => record[header] !== undefined ? record[header] : ""));
+}
+
+function setSettingValue_(sheet, headers, key, value, scopeType, scopeId, updatedBy) {
+  const rowNumber = findSettingRow_(sheet, headers, key, scopeType, scopeId);
+  if (!rowNumber) {
+    setSettingIfMissing_(sheet, headers, key, value, scopeType, scopeId, updatedBy);
+    return;
+  }
+  const updates = {
+    value,
+    scope_type: scopeType,
+    scope_id: scopeId,
+    updated_at: nowIso_(),
+    updated_by: updatedBy || "system"
+  };
+  Object.entries(updates).forEach(([field, fieldValue]) => {
+    const column = headers.indexOf(field) + 1;
+    if (column > 0) sheet.getRange(rowNumber, column).setValue(fieldValue);
+  });
 }
 
 function seedDummySettings_() {
@@ -2673,6 +3135,22 @@ function seedDummyV2Data_() {
     const number = String(index + 1).padStart(2, "0");
     return [`log_demo_${number}`, DEFAULT_INSTITUTION_ID, "system", "seed.demo", "finding", `finding_demo_${number}`, `seed-request-${number}`, "", JSON.stringify({ seeded: true, index: index + 1 }), nowIso];
   }), HEADERS.audit_logs);
+
+  appendRowsIfMissing_(SHEET_AI_JOBS, 0, Array.from({ length: 10 }, (_, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    const status = index < 8 ? "completed" : "failed";
+    return [`ai_job_demo_${number}`, DEFAULT_INSTITUTION_ID, `drive_ai_demo_${number}`, `laporan-audit-demo-${number}.pdf`, "application/pdf", 204800 + index, `Laporan Audit Demo ${number}`, status, "gemini-2.5-flash", status === "completed" ? 1 : 0, status === "completed" ? 82 - index : 0, status === "completed" ? "Draft demo dijana untuk semakan auditor." : "Demo ralat konfigurasi Gemini.", status === "failed" ? "GEMINI_API_KEY belum ditetapkan." : "", nowIso, "system", nowIso, "system", "", ""];
+  }), HEADERS.ai_jobs);
+
+  appendRowsIfMissing_(SHEET_AI_DRAFTS, 0, Array.from({ length: 10 }, (_, index) => {
+    const number = String(index + 1).padStart(2, "0");
+    const likelihood = (index % 4) + 1;
+    const impact = ((index + 2) % 4) + 1;
+    const risk = calculateRisk_(likelihood, impact, DEFAULT_INSTITUTION_ID);
+    const confidence = Number((0.9 - index * 0.03).toFixed(2));
+    const flags = index % 3 === 0 ? ["high_risk"] : [];
+    return [`ai_draft_demo_${number}`, DEFAULT_INSTITUTION_ID, `ai_job_demo_${number}`, V2_RISK_CATEGORIES[index % V2_RISK_CATEGORIES.length][0], `Draft AI isu audit ${number}`, `Huraian draft AI demo ${number} berdasarkan laporan audit institusi.`, "Kawalan proses tidak dilaksanakan secara konsisten.", "Risiko ketidakpatuhan dan kelewatan tindakan pembetulan.", `https://drive.google.com/demo/ai-evidence-${number}`, "Laksanakan semakan berkala dan bukti tindakan yang jelas.", likelihood, impact, risk.score, risk.levelId, confidence, flags.length ? "perlu_semakan" : "lengkap", Math.round(confidence * 100), JSON.stringify(flags), `${index + 1}`, index < 2 ? "promoted" : "draft", index < 2 ? `finding_demo_${number}` : "", nowIso, "system", nowIso, "system", "", ""];
+  }), HEADERS.ai_drafts);
 
   appendRowsIfMissing_(SHEET_MUTATION_RECEIPTS, 0, Array.from({ length: 10 }, (_, index) => {
     const number = String(index + 1).padStart(2, "0");

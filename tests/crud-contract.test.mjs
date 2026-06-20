@@ -10,15 +10,20 @@ const read = filePath => fs.readFileSync(path.join(rootDir, filePath), "utf8");
 const codeGs = read("apps-script/Code.gs");
 const frontendCrudSources = [
   read("assets/js/pages/audit-workspace-page.js"),
+  read("assets/js/pages/ai-intake-page.js"),
   read("assets/js/pages/data-master-page.js"),
   read("assets/js/core/audit-workflow-utils.js"),
+  read("assets/js/core/ai-intake-utils.js"),
   read("assets/js/services/audit-service.js"),
+  read("assets/js/services/ai-intake-service.js"),
   read("assets/js/services/data-master-service.js")
 ].join("\n");
 const auditWorkspaceSource = read("assets/js/pages/audit-workspace-page.js");
 const dataMasterPageSource = read("assets/js/pages/data-master-page.js");
 const formHtml = read("form.html");
 const formPageSource = read("assets/js/pages/form-page.js");
+const aiIntakeHtml = read("ai-intake.html");
+const aiIntakePageSource = read("assets/js/pages/ai-intake-page.js");
 
 const mutationActions = [
   "institutions.create",
@@ -61,7 +66,9 @@ const mutationActions = [
   "users.create",
   "users.update",
   "users.deactivate",
-  "users.restore"
+  "users.restore",
+  "aiIntake.create",
+  "aiDrafts.promote"
 ];
 
 const getActions = [
@@ -78,6 +85,8 @@ const getActions = [
   "dashboard.summary",
   "reports.dataset",
   "riskMatrix.get",
+  "aiJobs.list",
+  "aiDrafts.list",
   "mutations.status"
 ];
 
@@ -139,6 +148,16 @@ test("legacy public assessment form supports multiple audit issues in one submis
   assert.match(formPageSource, /"findings\.bulkCreate\.legacy"/, "form page must submit bulk legacy findings");
   assert.match(codeGs, /"findings\.bulkCreate\.legacy"/, "Apps Script must route bulk legacy findings");
   assert.match(codeGs, /function saveBulkFindingsMutation_/, "Apps Script must implement bulk finding persistence");
+});
+
+test("SPRAD Fasa 7 AI intake is wired from page to Apps Script", () => {
+  assert.match(aiIntakeHtml, /assets\/js\/pages\/ai-intake-page\.js/, "AI intake page must load its page module");
+  assert.match(aiIntakePageSource, /buildAiIntakeMutation/, "AI intake page must build upload mutations");
+  assert.match(aiIntakePageSource, /aiDrafts\.promote/, "AI intake page must let auditors promote reviewed drafts");
+  assert.match(codeGs, /SHEET_AI_JOBS/, "Apps Script must define AI job sheet");
+  assert.match(codeGs, /SHEET_AI_DRAFTS/, "Apps Script must define AI draft sheet");
+  assert.match(codeGs, /function mutateAiIntake_/, "Apps Script must implement AI intake mutation");
+  assert.match(codeGs, /function listAiDrafts_/, "Apps Script must expose AI draft list");
 });
 
 function quotedAction(action) {

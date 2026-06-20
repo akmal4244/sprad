@@ -121,6 +121,7 @@ function standardSidebarNav() {
   const links = [
     ["dashboard", "fa-chart-line", "Dashboard"],
     ["form", "fa-clipboard-list", "Penilaian risiko"],
+    ["ai-intake", "fa-wand-magic-sparkles", "AI Intake"],
     ["audit-cycles", "fa-calendar-days", "Kitaran audit"],
     ["audits", "fa-file-signature", "Audit"],
     ["findings", "fa-triangle-exclamation", "Penemuan"],
